@@ -21,7 +21,8 @@ export function Sprite({
     const paint = (frame = 0) => {
       ctx.imageSmoothingEnabled = false;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      if (landscape) drawLandscape(ctx, 520, 230, profile.cloak, profile.pet, kind);
+      if (landscape)
+        drawLandscape(ctx, canvas.width, canvas.height, profile.cloak, profile.pet, kind);
       else {
         drawCharacter(ctx, 68, 6, 3, profile.cloak, kind, frame);
         drawProp(ctx, 175, 62, 2, kind, frame);
@@ -56,7 +57,7 @@ export function Sprite({
     <canvas
       ref={ref}
       width={landscape ? 520 : 235}
-      height={landscape ? 230 : 130}
+      height={landscape ? 190 : 130}
       aria-label={`${profile.name}, ${kind}`}
       role="img"
       className={landscape ? 'landscape-canvas' : 'sprite-canvas'}

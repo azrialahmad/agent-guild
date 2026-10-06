@@ -161,10 +161,10 @@ async function setup(): Promise<void> {
     },
   );
   panel = new BrowserWindow({
-    width: 1080,
-    height: 800,
-    minWidth: 820,
-    minHeight: 650,
+    width: 520,
+    height: 620,
+    minWidth: 420,
+    minHeight: 500,
     title: 'Agent Guild',
     backgroundColor: '#f8f7f2',
     show: false,

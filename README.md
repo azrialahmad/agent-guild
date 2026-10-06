@@ -19,6 +19,8 @@ A macOS-first, open-source desktop companion. Pixel characters reflect live codi
 
 The desktop companion is a transparent overlay. The guild panel opens when you want to play, customize, or inspect. Game adventures are fictional; they do not claim to explain hidden agent reasoning or code correctness.
 
+The panel is a compact **520 × 620** window: three tabs for your companion, adventures, and wardrobe, with activity/settings/share shortcuts in the header. Adventure history and signal explanations expand when needed.
+
 ## Run locally
 
 Requires **Node.js 22+**, npm, and macOS. The initial native checks were run on Apple Silicon. Windows and Linux support are planned.

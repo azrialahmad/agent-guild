@@ -20,7 +20,7 @@ test('desktop follows the executing plugin source and never rewards observed too
   try {
     const panel = await panelWindow(app);
     await expect(
-      panel.getByRole('heading', { name: 'A little company while you create.' }),
+      panel.getByRole('heading', { name: 'Little Wanderer', exact: true }),
     ).toBeVisible();
     const path = join(await app.evaluate(({ app }) => app.getPath('userData')), 'activity.sock');
     const emit = (type: BridgePacket['type'], extra: Partial<BridgePacket> = {}) =>
@@ -83,7 +83,7 @@ test('overlay controls open the requested page and support an actual pointer dra
   try {
     const panel = await panelWindow(app);
     await expect(
-      panel.getByRole('heading', { name: 'A little company while you create.' }),
+      panel.getByRole('heading', { name: 'Little Wanderer', exact: true }),
     ).toBeVisible();
     await expect
       .poll(() => app.windows().some((window) => window.url().includes('surface=overlay')))
@@ -126,7 +126,7 @@ test('overlay controls open the requested page and support an actual pointer dra
       .getByRole('button', { name: 'Open your guild' })
       .click({ position: { x: 110, y: 65 } });
     await expect(
-      panel.getByRole('heading', { name: 'A little company while you create.' }),
+      panel.getByRole('heading', { name: 'Little Wanderer', exact: true }),
     ).toBeVisible();
     await expect
       .poll(() =>
@@ -186,8 +186,23 @@ test('desktop adventure survives reload, unlocks cosmetics, and produces a real 
   try {
     const panel = await panelWindow(app);
     await expect(
-      panel.getByRole('heading', { name: 'A little company while you create.' }),
+      panel.getByRole('heading', { name: 'Little Wanderer', exact: true }),
     ).toBeVisible();
+    const bounds = await app.evaluate(({ BrowserWindow }) =>
+      BrowserWindow.getAllWindows()
+        .find((window) => window.webContents.getURL().includes('surface=panel'))!
+        .getBounds(),
+    );
+    expect({ width: bounds.width, height: bounds.height }).toEqual({ width: 520, height: 620 });
+    const main = panel.locator('main');
+    expect(await main.evaluate((element) => element.scrollHeight <= element.clientHeight + 1)).toBe(
+      true,
+    );
+    const history = panel.getByLabel('Adventure completions in the last 84 local days');
+    await expect(history).not.toBeVisible();
+    await panel.getByText('Adventure history', { exact: false }).click();
+    await expect(history).toBeVisible();
+    await panel.getByText('Adventure history', { exact: false }).click();
     await panel.getByRole('button', { name: 'Adventures', exact: true }).click();
     await panel.getByRole('button', { name: /The lantern meadow/ }).click();
     await panel.getByRole('button', { name: 'I remember the trail' }).click();
@@ -215,7 +230,12 @@ test('desktop adventure survives reload, unlocks cosmetics, and produces a real 
     expect(profile.completed).toHaveLength(1);
     expect(profile.cloak).toBe('fern');
     await panel.getByRole('button', { name: 'My guild', exact: true }).click();
-    await panel.screenshot({ path: join('test-results', 'guild-desktop.png'), fullPage: true });
+    await panel.screenshot({
+      path: join('test-results', 'guild-desktop.png'),
+      fullPage: true,
+      scale: 'css',
+      animations: 'disabled',
+    });
   } finally {
     await app.close();
   }
@@ -230,7 +250,7 @@ test('native overlay is transparent, unfocusable, movable, and can be hidden and
   try {
     const panel = await panelWindow(app);
     await expect(
-      panel.getByRole('heading', { name: 'A little company while you create.' }),
+      panel.getByRole('heading', { name: 'Little Wanderer', exact: true }),
     ).toBeVisible();
     await expect.poll(() => app.windows().length).toBe(2);
     const native = await app.evaluate(({ BrowserWindow }) => {

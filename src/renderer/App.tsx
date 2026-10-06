@@ -2,17 +2,13 @@ import { useEffect, useRef, useState } from 'react';
 import {
   ArrowDownToLine,
   ArrowRight,
-  BookOpen,
   Check,
   ChevronRight,
   CircleHelp,
   Compass,
   Eye,
   EyeOff,
-  Flower2,
-  Github,
   Heart,
-  Leaf,
   Radio,
   RefreshCw,
   Settings2,
@@ -92,7 +88,6 @@ function ShareDialog({
     <dialog ref={ref} className="share-dialog" onCancel={close} aria-labelledby="share-title">
       <div className="section-heading">
         <div>
-          <span className="eyebrow">A LITTLE SOMETHING TO SHARE</span>
           <h2 id="share-title">Your guild postcard</h2>
         </div>
         <button className="icon-button" onClick={close} aria-label="Close postcard">
@@ -228,272 +223,182 @@ export function App() {
 
   return (
     <div className={`app-shell ${profile.reducedMotion ? 'reduce-motion' : ''}`}>
-      <aside className="sidebar">
-        <div className="brand">
-          <span className="brand-mark">
-            <Sprout size={23} />
-          </span>
-          <div>
-            agent guild<span>GOOD COMPANY, ALWAYS.</span>
+      <div className="main-shell">
+        <header className="topbar">
+          <div className="brand">
+            <Sprout size={21} aria-hidden="true" />
+            <span>agent guild</span>
           </div>
-        </div>
-        <span className="nav-caption">YOUR LITTLE WORLD</span>
-        <nav aria-label="Guild navigation">
-          {NAV.map(({ id, label, icon: Icon }) => (
+          <div className="topbar-right">
+            <span className="mode-badge" title={activity.source?.label}>
+              <span
+                className={`status-dot ${activity.connection === 'connected' ? 'working' : activity.mode === 'demo' ? 'reading' : 'unknown'}`}
+              />
+              {activity.mode === 'demo' ? 'Demo' : harness}
+            </span>
+            <button
+              className={`icon-button ${page === 'activity' ? 'selected' : ''}`}
+              aria-label="Agent activity"
+              title="Agent activity"
+              aria-current={page === 'activity' ? 'page' : undefined}
+              onClick={() => setPage('activity')}
+            >
+              <Radio size={17} />
+            </button>
+            <button
+              className={`icon-button ${page === 'settings' ? 'selected' : ''}`}
+              aria-label="Settings"
+              title="Settings"
+              aria-current={page === 'settings' ? 'page' : undefined}
+              onClick={() => setPage('settings')}
+            >
+              <Settings2 size={17} />
+            </button>
+            <button
+              className="icon-button"
+              aria-label="Share your guild"
+              title="Share your guild"
+              onClick={() => setSharing(true)}
+            >
+              <Share2 size={17} />
+            </button>
+          </div>
+        </header>
+        <nav className="panel-tabs" aria-label="Guild navigation">
+          {NAV.slice(0, 3).map(({ id, label, icon: Icon }) => (
             <button
               key={id}
               className={`nav-link ${page === id ? 'selected' : ''}`}
               aria-current={page === id ? 'page' : undefined}
               onClick={() => setPage(id)}
             >
-              <Icon size={18} />
+              <Icon size={16} aria-hidden="true" />
               {label}
-              {page === id && <span className="nav-pebble" />}
             </button>
           ))}
         </nav>
-        <div className="sidebar-note">
-          <Flower2 size={24} />
-          <p>
-            Small adventures.
-            <br />
-            Real company.
-          </p>
-          <span>Make the waiting a little nicer.</span>
-        </div>
-        <div className="sidebar-footer">
-          <Github size={15} />
-          <a href="https://github.com/azrialahmad/agent-guild" target="_blank" rel="noreferrer">
-            An open-source little world
-          </a>
-          <span>v0.1 / EARLY ADVENTURE</span>
-        </div>
-      </aside>
-      <div className="main-shell">
-        <header className="topbar">
-          <div className="breadcrumb">
-            Your guild <ChevronRight size={14} />
-            <strong>{title}</strong>
-          </div>
-          <div className="topbar-right">
-            <span className="mode-badge">
-              <span
-                className={`status-dot ${activity.connection === 'connected' ? 'working' : activity.mode === 'demo' ? 'reading' : 'unknown'}`}
-              />
-              {activity.mode === 'demo' ? 'Demo mode' : `${harness} ${activity.version ?? ''}`}
-            </span>
-            <button
-              className="icon-button"
-              aria-label="Open settings"
-              onClick={() => setPage('settings')}
-            >
-              <Settings2 size={17} />
-            </button>
-          </div>
-        </header>
-        <main className="main-content">
-          <div className="page-heading">
-            <div>
-              <span className="eyebrow">
-                {page === 'guild' ? 'WELCOME TO YOUR LITTLE CORNER' : 'YOUR NEXT LITTLE CHAPTER'}
-              </span>
-              <h1>{page === 'guild' ? 'A little company while you create.' : title}</h1>
-              <p>
-                {page === 'guild'
-                  ? 'Your agent does the work. You make the adventure.'
-                  : page === 'adventures'
-                    ? 'A small detour for the moments in between. Always saved, never a race.'
-                    : page === 'wardrobe'
-                      ? 'A character that becomes a little more you.'
-                      : page === 'activity'
-                        ? 'Real events behind the little animations.'
-                        : 'Make yourself at home. Connect, settle in, and keep creating.'}
-              </p>
+        <main className="main-content" key={page}>
+          {page !== 'guild' && (
+            <div className="page-heading">
+              <h1>{title}</h1>
             </div>
-            <button className="button share-button" onClick={() => setSharing(true)}>
-              <Share2 size={16} />
-              Share your guild
-            </button>
-          </div>
+          )}
           {activity.kind === 'attention' && (
             <div className="attention-banner" role="status">
               <CircleHelp size={19} />
               <span>
                 {activity.mode === 'demo' ? 'Demo attention signal' : 'Your agent needs you'}. Your
-                adventure is saved—return to your coding session whenever you’re ready.
+                adventure is saved.
               </span>
             </div>
           )}
           {page === 'guild' && (
             <>
-              <div className="hero-grid">
-                <section className="character-card card">
-                  <div className="card-topline">
-                    <span className="eyebrow">YOUR COMPANION</span>
-                    <span className="soft-badge">LV. {level(profile.xp)}</span>
-                  </div>
-                  <div className="landscape-wrap">
-                    <Sprite profile={profile} kind={activity.kind} landscape />
-                    <span className="scene-caption">
-                      <span className={`status-dot ${activity.kind}`} />
-                      {WORK_LABELS[activity.kind]}
-                    </span>
-                    {pet && <span className="landscape-heart">♥</span>}
-                  </div>
-                  <div className="character-details">
-                    <div>
-                      <h2>{profile.name}</h2>
-                      <p>Wanderer · {cloak.name} cloak</p>
-                    </div>
-                    <button
-                      className="icon-button pet-button"
-                      title="Say hello"
-                      aria-label="Pet your companion"
-                      onClick={() => {
-                        setPet(true);
-                        setTimeout(() => setPet(false), 1800);
-                      }}
-                    >
-                      <Heart size={18} />
-                    </button>
-                  </div>
-                  <div className="xp-row">
-                    <span>Level {level(profile.xp)}</span>
-                    <span>{profile.xp % 100} / 100 XP</span>
-                  </div>
-                  <div className="xp-track">
-                    <span style={{ width: `${profile.xp % 100}%` }} />
-                  </div>
-                </section>
-                <div className="hero-side">
-                  <section className="live-card card">
-                    <div className="card-topline">
-                      <span className="eyebrow">ON THE WORKBENCH</span>
-                      <Radio size={17} />
-                    </div>
-                    <h3>
-                      {activity.mode === 'demo' ? 'A glimpse of guild life' : activity.sessionTitle}
-                    </h3>
-                    <div className="live-status">
-                      <span className={`status-dot ${activity.kind}`} />
-                      <span>{activity.label}</span>
-                    </div>
+              <section className="character-card card">
+                <div className="character-details">
+                  <div>
+                    <h1>{profile.name}</h1>
                     <p>
-                      {activity.mode === 'demo'
-                        ? 'Synthetic agent activity lets you try the guild immediately. Connect a real session when you’re ready.'
-                        : activity.connection === 'connected'
-                          ? 'Following your real session. Turn ended means the agent stopped—not that the code is correct.'
-                          : activity.error || 'Connecting to your coding agent…'}
+                      {cloak.name} cloak · Level {level(profile.xp)}
                     </p>
-                    <button
-                      className="text-button"
-                      onClick={() => {
-                        setPage(activity.mode === 'demo' ? 'settings' : 'activity');
-                      }}
-                    >
-                      {' '}
-                      {activity.mode === 'demo'
-                        ? 'Connect your agent'
-                        : 'Look behind the animation'}{' '}
-                      <ArrowRight size={15} />
-                    </button>
-                  </section>
-                  <section className="milestone-card card">
-                    <span className="milestone-icon">
-                      <Leaf size={22} />
-                    </span>
-                    <div>
-                      <span className="eyebrow">LITTLE STEPS ADD UP</span>
-                      <h3>
-                        {completed
-                          ? `${completed} adventure${completed === 1 ? '' : 's'}, and counting.`
-                          : 'Every story starts somewhere.'}
-                      </h3>
-                      <p>
-                        {completed < 2
-                          ? `${2 - completed} more adventure${2 - completed === 1 ? '' : 's'} to meet a woodland fox.`
-                          : 'Your woodland fox is waiting in the wardrobe.'}
-                      </p>
-                    </div>
-                  </section>
-                </div>
-              </div>
-              <div className="bottom-grid">
-                <section className="card adventure-teaser">
-                  <div className="section-heading">
-                    <div>
-                      <span className="eyebrow">WHILE YOUR AGENT WANDERS</span>
-                      <h2>
-                        {profile.adventure ? 'Your trail is waiting.' : 'Take a tiny adventure.'}
-                      </h2>
-                    </div>
-                    <Sparkles size={22} />
                   </div>
-                  <p>
-                    A firefly, a quiet river, a woodland song. A few moments of play become a
-                    keepsake of your own.
-                  </p>
-                  <button className="button primary" onClick={() => setPage('adventures')}>
-                    {profile.adventure ? 'Continue your adventure' : 'Find your first adventure'}
-                    <ArrowRight size={16} />
+                  <button
+                    className="icon-button pet-button"
+                    title="Pet your companion"
+                    aria-label="Pet your companion"
+                    onClick={() => {
+                      setPet(true);
+                      setTimeout(() => setPet(false), 1800);
+                    }}
+                  >
+                    <Heart size={18} />
                   </button>
-                  <span className="fine-print">40 XP per adventure · progress saved as you go</span>
-                </section>
-                <section className="card calendar-card">
-                  <div className="section-heading">
-                    <div>
-                      <span className="eyebrow">A TRAIL OF LITTLE MOMENTS</span>
-                      <h2>Your adventure activity</h2>
-                    </div>
-                    <BookOpen size={20} />
-                  </div>
-                  <Calendar days={profile.activityDays} />
-                  <div className="calendar-legend">
-                    <span>Last 84 local days · game activity</span>
-                    <span>
-                      Less <i className="day" />
-                      <i className="day active" />
-                      <i className="day active high" /> More
-                    </span>
-                  </div>
-                </section>
-              </div>
+                </div>
+                <div className="landscape-wrap">
+                  <Sprite profile={profile} kind={activity.kind} landscape />
+                  <span className="scene-caption">
+                    <span className={`status-dot ${activity.kind}`} />
+                    {WORK_LABELS[activity.kind]}
+                  </span>
+                  {pet && <span className="landscape-heart">♥</span>}
+                </div>
+                <div className="xp-row">
+                  <span>
+                    {completed} adventure{completed === 1 ? '' : 's'} completed
+                  </span>
+                  <span>{profile.xp % 100} / 100 XP</span>
+                </div>
+                <div className="xp-track">
+                  <span style={{ width: `${profile.xp % 100}%` }} />
+                </div>
+                <button
+                  className="session-status"
+                  onClick={() => setPage(activity.mode === 'demo' ? 'settings' : 'activity')}
+                >
+                  <span className={`status-dot ${activity.kind}`} />
+                  <span>
+                    <strong>{activity.label}</strong>
+                    <small title={activity.error || activity.sessionTitle}>
+                      {activity.mode === 'demo'
+                        ? 'Demo activity · connect your agent'
+                        : activity.sessionTitle}
+                    </small>
+                  </span>
+                  <ChevronRight size={16} />
+                </button>
+              </section>
+              <button className="adventure-shortcut" onClick={() => setPage('adventures')}>
+                <span className="shortcut-icon">
+                  <Sparkles size={20} />
+                </span>
+                <span>
+                  <strong>
+                    {profile.adventure ? 'Continue your adventure' : 'Start an adventure'}
+                  </strong>
+                  <small>40 XP · progress saved</small>
+                </span>
+                <ArrowRight size={17} />
+              </button>
+              <details className="disclosure history-disclosure">
+                <summary>
+                  Adventure history <span>{completed} completed</span>
+                </summary>
+                <Calendar days={profile.activityDays} />
+                <div className="calendar-legend">
+                  <span>Last 84 local days · game activity</span>
+                  <span>
+                    Less <i className="day" />
+                    <i className="day active" />
+                    <i className="day active high" /> More
+                  </span>
+                </div>
+              </details>
             </>
           )}
           {page === 'adventures' && (
             <section className="card adventure-page" aria-busy={busy}>
               <div className="section-heading">
                 <div>
-                  <span className="eyebrow">CHOOSE A PATH, BRING HOME A STORY</span>
-                  <h2>
-                    {profile.adventure ? 'One little step at a time.' : 'Where shall we wander?'}
-                  </h2>
+                  <h2>{profile.adventure ? 'Your saved adventure' : 'Choose a trail'}</h2>
                 </div>
-                <Compass size={24} />
+                <Compass size={18} />
               </div>
               <Adventure adventure={profile.adventure} act={act} />
               <div className="adventure-footer">
-                <Check size={15} /> Your progress saves after every choice. Leaving never costs you
-                a reward.
+                <Check size={14} /> Saved after every choice. Come back anytime.
               </div>
             </section>
           )}
           {page === 'wardrobe' && (
             <div className="wardrobe-grid">
-              <section className="character-card card">
+              <section className="wardrobe-preview">
                 <Sprite profile={profile} kind="idle" landscape />
-                <div className="character-details">
-                  <div>
-                    <h2>{profile.name}</h2>
-                    <p>
-                      {cloak.name} · level {level(profile.xp)}
-                    </p>
-                  </div>
-                </div>
+                <p>
+                  {cloak.name} · Level {level(profile.xp)}
+                </p>
               </section>
               <section className="card wardrobe-options">
-                <span className="eyebrow">COLLECT LITTLE PIECES OF YOU</span>
-                <h2>A cloak for every chapter.</h2>
+                <h2>Cloaks</h2>
                 <div className="cloak-grid">
                   {CLOAKS.map((item) => (
                     <button
@@ -520,8 +425,8 @@ export function App() {
                     <strong>A woodland friend</strong>
                     <p>
                       {completed < 2
-                        ? 'Meet your fox after two adventures.'
-                        : 'A little fox to keep your wanderer company.'}
+                        ? 'Unlocks after 2 adventures.'
+                        : 'Your companion’s companion.'}
                     </p>
                   </div>
                   <button
@@ -540,18 +445,16 @@ export function App() {
               <div className="section-heading">
                 <div>
                   <span className="eyebrow">
-                    {activity.mode === 'demo'
-                      ? 'SYNTHETIC DEMO EVENTS'
-                      : 'SELECTED HARNESS SESSION'}
+                    {activity.mode === 'demo' ? 'DEMO EVENTS' : 'FOLLOWING'}
                   </span>
                   <h2>{activity.sessionTitle}</h2>
                 </div>
                 <span className="soft-badge">{activity.connection}</span>
               </div>
-              <p className="fine-print">
-                {activity.historyNote ||
-                  'These demo events are fictional. They never award game XP.'}
-              </p>
+              <div className="live-status">
+                <span className={`status-dot ${activity.kind}`} />
+                {activity.label}
+              </div>
               {activity.source && (
                 <p className="fine-print">
                   Source: {activity.source.label}
@@ -559,26 +462,34 @@ export function App() {
                   Last signal received: {new Date(activity.source.lastSignal).toLocaleTimeString()}
                 </p>
               )}
-              <div className="usage-grid">
-                {[
-                  ['Input tokens', activity.usage?.input],
-                  ['Output tokens', activity.usage?.output],
-                  ['Cache read', activity.usage?.cache.read],
-                ].map(([label, value]) => (
-                  <div key={label}>
-                    <span>{label}</span>
-                    <strong>
-                      {typeof value === 'number' ? value.toLocaleString() : 'Unavailable'}
-                    </strong>
-                  </div>
-                ))}
-              </div>
-              <p className="fine-print">
-                {activity.usage
-                  ? 'Selected-session totals reported by OpenCode.'
-                  : 'This source does not provide token totals.'}{' '}
-                Token consumption is not a measure of productivity.
-              </p>
+              {activity.usage && (
+                <div className="usage-grid">
+                  {[
+                    ['Input tokens', activity.usage?.input],
+                    ['Output tokens', activity.usage?.output],
+                    ['Cache read', activity.usage?.cache.read],
+                  ].map(([label, value]) => (
+                    <div key={label}>
+                      <span>{label}</span>
+                      <strong>
+                        {typeof value === 'number' ? value.toLocaleString() : 'Unavailable'}
+                      </strong>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <details className="disclosure signal-details">
+                <summary>About these signals</summary>
+                <p className="fine-print">
+                  {activity.historyNote || 'Fictional demo events. They never award game XP.'}
+                </p>
+                <p className="fine-print">
+                  {activity.usage
+                    ? 'OpenCode session token totals.'
+                    : 'Token totals are unavailable for this source.'}{' '}
+                  Token use does not measure productivity.
+                </p>
+              </details>
               <div className="event-list">
                 {activity.events.length ? (
                   activity.events.map((event) => (
@@ -612,13 +523,8 @@ export function App() {
           {page === 'settings' && (
             <div className="settings-grid">
               <section className="card settings-card">
-                <span className="eyebrow">A BRIDGE TO YOUR REAL WORK</span>
-                <h2>Connect your coding agent</h2>
-                <p>
-                  Follow signals from an OpenCode plugin, Codex hooks, or Claude Code hooks. Your
-                  usual coding interface stays in charge. The shared OpenCode service is also
-                  available.
-                </p>
+                <h2>Agent connection</h2>
+                <p>Choose your agent’s plugin or hook source for live activity.</p>
                 <button className="button" onClick={refreshSessions} disabled={loading}>
                   <RefreshCw size={16} className={loading ? 'spin' : ''} />
                   {loading ? 'Finding sessions…' : 'Find local sessions'}
@@ -660,17 +566,19 @@ export function App() {
                   className="text-button"
                   onClick={() => void bridge.demo().catch((error) => setNotice(String(error)))}
                 >
-                  Use the synthetic demo instead <ArrowRight size={14} />
+                  Use demo activity <ArrowRight size={14} />
                 </button>
-                <p className="fine-print">
-                  {isDesktop
-                    ? 'Install the adapter from integrations/README.md, run the harness, then refresh. Prefer its plugin/hook entry when a UI uses a private server. Source and last-signal time appear in Agent activity.'
-                    : 'Browser preview: install the desktop app for live connections.'}
-                </p>
+                <details className="disclosure">
+                  <summary>Adapter setup</summary>
+                  <p className="fine-print">
+                    {isDesktop
+                      ? 'Install the adapter from integrations/README.md, run the harness, then refresh. Prefer its plugin/hook entry when a UI uses a private server. Source and last-signal time appear in Agent activity.'
+                      : 'Browser preview: install the desktop app for live connections.'}
+                  </p>
+                </details>
               </section>
               <section className="card settings-card">
-                <span className="eyebrow">SETTLE IN</span>
-                <h2>Make it your own</h2>
+                <h2>Preferences</h2>
                 <form
                   onSubmit={(event) => {
                     event.preventDefault();
@@ -695,9 +603,7 @@ export function App() {
                 <label className="toggle-row">
                   <span>
                     <strong>Quiet animations</strong>
-                    <small>
-                      Keep the character still. System reduced-motion settings are also respected.
-                    </small>
+                    <small>Also respects system reduced motion.</small>
                   </span>
                   <input
                     type="checkbox"
@@ -710,7 +616,7 @@ export function App() {
                     <strong>Desktop companion</strong>
                     <small>
                       {isDesktop
-                        ? 'Visible over other work, without taking focus.'
+                        ? 'Visible without taking focus.'
                         : 'Available in the installed desktop app.'}
                     </small>
                   </span>
@@ -751,12 +657,6 @@ export function App() {
               </section>
             </div>
           )}
-          <footer className="page-footer">
-            <span>
-              <Sprout size={13} /> Crafted for the moments in between.
-            </span>
-            <span>Local progress. Little adventures. No rush.</span>
-          </footer>
         </main>
       </div>
       {notice && (

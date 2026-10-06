@@ -7,6 +7,8 @@ Repository: [azrialahmad/agent-guild](https://github.com/azrialahmad/agent-guild
 This build implements the first live macOS slice of the Docmost PRD, with a small set of sharing features.
 
 - Electron host; React + TypeScript guild panel; original Canvas pixel art.
+- Compact 520 × 620 utility panel (minimum 420 × 500), replacing the 1080 × 800 dashboard. Three primary tabs, header activity/settings/share shortcuts, and a single companion/status view.
+- Adventure history and signal explanations use native expandable disclosures. Secondary pages scroll inside the panel; navigation remains available. The default companion screen fits without scrolling.
 - Transparent 260 × 190 desktop-edge overlay, non-focusable, floating above regular windows.
 - Per-pixel sprite hit testing requests native click-through for empty areas. Visible status and controls are interactive regions.
 - Menu-bar lantern, hide/restore, captured pointer drags, display-work-area clamping, position reset, and saved placement.
@@ -76,8 +78,11 @@ Results: `npm run check` passed with 15 domain tests. The 4 native Electron test
 - Sparkle selects Adventures from a minimized panel; character selects My guild from a hidden panel and focuses it.
 - A pointer-driven grip drag changes native bounds and persists the new position to the profile file.
 - A selected private-server plugin source drives editing/attention/turn-end states and exposes source metadata. Observed tools and turn end leave XP and rewards unchanged.
+- Compact native window dimensions and the no-scroll default companion view are asserted. Adventure history expands on demand; adventures, wardrobe unlocks, and postcard export still work at the smaller size.
 
 These checks exercise an actual Electron application rather than browser-only mocks. The source and packaged build are checked separately before delivery.
+
+The compact layout was also inspected in the synthetic browser demo at 375-pixel and desktop widths, with reduced motion enabled. Primary pages have no horizontal overflow. Browser/demo validation is separate from native overlay behavior.
 
 ### Short resource baseline
 

@@ -12,5 +12,7 @@
 - Uninstrumented macOS process-tree resource measurement with isolated temporary profiles.
 - Local activity bridge, executing-server OpenCode plugin, and experimental Codex/Claude Code hook bundles with source/freshness indicators.
 - Shared-service snapshots with newer saved activity are marked unknown instead of falsely idle; lifecycle signals never grant XP.
+- Compact 520 × 620 guild panel with three tabs, header shortcuts, a single companion/status view, and expandable history/diagnostics.
+- Shorter copy, smaller adventure/wardrobe controls, and a compact postcard dialog.
 
 This is an early local prototype; desktop compatibility and game retention are still being validated.
