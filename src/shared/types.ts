@@ -86,7 +86,8 @@ export interface GuildBridge {
   sessions(): Promise<SessionOption[]>;
   connect(sessionId: string): Promise<void>;
   demo(): Promise<void>;
-  openPanel(): void;
+  openPanel(page?: 'guild' | 'adventures'): void;
+  onNavigate(callback: (page: 'guild' | 'adventures') => void): () => void;
   hideOverlay(hidden: boolean): Promise<void>;
   resetPosition(): void;
   setInteractive(interactive: boolean): void;

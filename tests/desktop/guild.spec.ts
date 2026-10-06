@@ -1,5 +1,6 @@
 import { _electron as electron, expect, test, type ElectronApplication } from '@playwright/test';
 import { join } from 'node:path';
+import { readFile } from 'node:fs/promises';
 
 async function panelWindow(app: ElectronApplication) {
   await expect
@@ -7,6 +8,109 @@ async function panelWindow(app: ElectronApplication) {
     .toBe(true);
   return app.windows().find((window) => window.url().includes('surface=panel'))!;
 }
+
+test('overlay controls open the requested page and support an actual pointer drag', async () => {
+  const app = await electron.launch({
+    executablePath: process.env.AGENT_GUILD_EXECUTABLE,
+    args: process.env.AGENT_GUILD_EXECUTABLE ? [] : ['.'],
+    env: { ...process.env, AGENT_GUILD_SMOKE: '1' },
+  });
+  try {
+    const panel = await panelWindow(app);
+    await expect(
+      panel.getByRole('heading', { name: 'A little company while you create.' }),
+    ).toBeVisible();
+    await expect
+      .poll(() => app.windows().some((window) => window.url().includes('surface=overlay')))
+      .toBe(true);
+    const overlay = app.windows().find((window) => window.url().includes('surface=overlay'))!;
+    await app.evaluate(({ BrowserWindow }) =>
+      BrowserWindow.getAllWindows()
+        .find((window) => window.webContents.getURL().includes('surface=panel'))!
+        .minimize(),
+    );
+    await expect
+      .poll(() =>
+        app.evaluate(({ BrowserWindow }) =>
+          BrowserWindow.getAllWindows()
+            .find((window) => window.webContents.getURL().includes('surface=panel'))!
+            .isMinimized(),
+        ),
+      )
+      .toBe(true);
+    await overlay
+      .getByRole('button', { name: 'Open your guild' })
+      .hover({ position: { x: 110, y: 65 } });
+    await overlay.getByRole('button', { name: 'Play an adventure' }).click();
+    await expect(panel.getByRole('heading', { name: 'Adventures', exact: true })).toBeVisible();
+    expect(
+      await app.evaluate(({ BrowserWindow }) => {
+        const panel = BrowserWindow.getAllWindows().find((window) =>
+          window.webContents.getURL().includes('surface=panel'),
+        )!;
+        return { visible: panel.isVisible(), minimized: panel.isMinimized() };
+      }),
+    ).toEqual({ visible: true, minimized: false });
+    await panel.getByRole('button', { name: 'Wardrobe', exact: true }).click();
+    await app.evaluate(({ BrowserWindow }) =>
+      BrowserWindow.getAllWindows()
+        .find((window) => window.webContents.getURL().includes('surface=panel'))!
+        .hide(),
+    );
+    await overlay
+      .getByRole('button', { name: 'Open your guild' })
+      .click({ position: { x: 110, y: 65 } });
+    await expect(
+      panel.getByRole('heading', { name: 'A little company while you create.' }),
+    ).toBeVisible();
+    await expect
+      .poll(() =>
+        app.evaluate(({ BrowserWindow }) =>
+          BrowserWindow.getAllWindows()
+            .find((window) => window.webContents.getURL().includes('surface=panel'))!
+            .isFocused(),
+        ),
+      )
+      .toBe(true);
+    const original = await app.evaluate(({ BrowserWindow }) =>
+      BrowserWindow.getAllWindows()
+        .find((window) => window.webContents.getURL().includes('surface=overlay'))!
+        .getBounds(),
+    );
+    await overlay
+      .getByRole('button', { name: 'Open your guild' })
+      .hover({ position: { x: 110, y: 65 } });
+    const grip = await overlay
+      .getByRole('button', { name: 'Drag companion to reposition' })
+      .boundingBox();
+    if (!grip) throw new Error('No drag handle');
+    const x = grip.x + grip.width / 2;
+    const y = grip.y + grip.height / 2;
+    await overlay.mouse.move(x, y);
+    await overlay.mouse.down();
+    await overlay.mouse.move(x - 40, y - 15);
+    await overlay.mouse.up();
+    await expect
+      .poll(async () =>
+        app.evaluate(
+          ({ BrowserWindow }) =>
+            BrowserWindow.getAllWindows()
+              .find((window) => window.webContents.getURL().includes('surface=overlay'))!
+              .getBounds().x,
+        ),
+      )
+      .toBe(original.x - 40);
+    const profilePath = join(
+      await app.evaluate(({ app }) => app.getPath('userData')),
+      'profile.json',
+    );
+    await expect
+      .poll(async () => JSON.parse(await readFile(profilePath, 'utf8')).position.x)
+      .toBe(original.x - 40);
+  } finally {
+    await app.close();
+  }
+});
 
 test('desktop adventure survives reload, unlocks cosmetics, and produces a real postcard', async () => {
   const app = await electron.launch({

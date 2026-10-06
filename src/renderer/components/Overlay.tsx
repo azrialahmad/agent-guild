@@ -3,17 +3,17 @@ import { GripHorizontal, Heart, Sparkles } from 'lucide-react';
 import type { GuildState } from '../../shared/types';
 import { bridge } from '../bridge';
 import { Sprite } from './Sprite';
+import { spritePixelIsVisible } from '../sprite-hit-test';
 
 export function Overlay({ state }: { state: GuildState }) {
   const [heart, setHeart] = useState(false);
+  const [dragging, setDragging] = useState(false);
   const interactive = useRef(false);
   const drag = useRef<{ x: number; y: number } | null>(null);
   useEffect(() => {
     document.body.classList.add('overlay-body');
     const move = (event: MouseEvent) => {
       if (drag.current) {
-        bridge.moveOverlay(event.screenX - drag.current.x, event.screenY - drag.current.y);
-        drag.current = { x: event.screenX, y: event.screenY };
         return;
       }
       const target = (event.target as HTMLElement).closest<HTMLElement>('[data-hit]');
@@ -24,12 +24,7 @@ export function Overlay({ state }: { state: GuildState }) {
         const rect = canvas.getBoundingClientRect();
         const x = Math.floor(((event.clientX - rect.left) * canvas.width) / rect.width);
         const y = Math.floor(((event.clientY - rect.top) * canvas.height) / rect.height);
-        hit =
-          x >= 0 &&
-          y >= 0 &&
-          x < canvas.width &&
-          y < canvas.height &&
-          canvas.getContext('2d')!.getImageData(x, y, 1, 1).data[3] > 24;
+        hit = spritePixelIsVisible(canvas, x, y);
       }
       if (
         target?.classList.contains('overlay-tools') &&
@@ -43,6 +38,7 @@ export function Overlay({ state }: { state: GuildState }) {
     };
     const release = () => {
       drag.current = null;
+      setDragging(false);
     };
     const leave = () => {
       if (!drag.current) {
@@ -81,6 +77,7 @@ export function Overlay({ state }: { state: GuildState }) {
       <div className="overlay-tools" data-hit>
         <button
           aria-label="Pet your companion"
+          title="Pet your companion"
           onClick={() => {
             setHeart(true);
             setTimeout(() => setHeart(false), 1800);
@@ -88,14 +85,43 @@ export function Overlay({ state }: { state: GuildState }) {
         >
           <Heart size={14} />
         </button>
-        <button aria-label="Play an adventure" onClick={() => bridge.openPanel()}>
+        <button
+          aria-label="Play an adventure"
+          title="Play an adventure"
+          onClick={() => bridge.openPanel('adventures')}
+        >
           <Sparkles size={14} />
         </button>
         <button
           aria-label="Drag companion to reposition"
-          onMouseDown={(event) => {
+          title="Drag to move your companion"
+          className={`drag-handle ${dragging ? 'dragging' : ''}`}
+          onPointerDown={(event) => {
             event.preventDefault();
+            event.currentTarget.setPointerCapture(event.pointerId);
+            bridge.setInteractive(true);
+            interactive.current = true;
             drag.current = { x: event.screenX, y: event.screenY };
+            setDragging(true);
+          }}
+          onPointerMove={(event) => {
+            if (!drag.current) return;
+            bridge.moveOverlay(event.screenX - drag.current.x, event.screenY - drag.current.y);
+            drag.current = { x: event.screenX, y: event.screenY };
+          }}
+          onPointerUp={(event) => {
+            drag.current = null;
+            setDragging(false);
+            if (event.currentTarget.hasPointerCapture(event.pointerId))
+              event.currentTarget.releasePointerCapture(event.pointerId);
+          }}
+          onPointerCancel={() => {
+            drag.current = null;
+            setDragging(false);
+          }}
+          onLostPointerCapture={() => {
+            drag.current = null;
+            setDragging(false);
           }}
         >
           <GripHorizontal size={16} />

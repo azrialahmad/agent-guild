@@ -1144,6 +1144,21 @@ html:has(.overlay-body),
   border: 1px solid #dedacf;
   border-radius: 4px;
 }
+.overlay-tools button:hover {
+  background: #eee8f3;
+  color: #79618d;
+}
+.overlay-tools button:active {
+  background: #dfd4e8;
+}
+.overlay-tools .drag-handle {
+  cursor: grab;
+  touch-action: none;
+}
+.overlay-tools .drag-handle.dragging {
+  cursor: grabbing;
+  background: #dfd4e8;
+}
 .pet-heart {
   position: absolute;
   top: 48px;

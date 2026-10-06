@@ -148,7 +148,9 @@ function ShareDialog({
 
 export function App() {
   const [state, setState] = useState<GuildState | null>(null);
-  const [page, setPage] = useState<Page>('guild');
+  const [page, setPage] = useState<Page>(() =>
+    new URLSearchParams(location.search).get('page') === 'adventures' ? 'adventures' : 'guild',
+  );
   const [notice, setNotice] = useState('');
   const [sharing, setSharing] = useState(false);
   const [pet, setPet] = useState(false);
@@ -174,6 +176,7 @@ export function App() {
       .catch((error) => setNotice(String(error)));
     return unsubscribe;
   }, []);
+  useEffect(() => bridge.onNavigate(setPage), []);
   useEffect(() => {
     if (state) setName(state.profile.name);
   }, [state?.profile.name]);

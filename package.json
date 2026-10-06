@@ -24,6 +24,7 @@
     "test:desktop": "npm run build && playwright test",
     "verify:live": "tsx scripts/verify-live.ts",
     "verify:connector": "tsx scripts/verify-connector.ts",
+    "measure:desktop": "tsx scripts/measure-desktop.ts",
     "package:mac": "npm run build && electron-builder --mac --dir",
     "icons": "node scripts/generate-icon.mjs"
   },

@@ -19,6 +19,8 @@ import { ProfileStore } from './persistence';
 import { clampPlacement } from './placement';
 
 const smoke = process.env.AGENT_GUILD_SMOKE === '1';
+// Resource measurements launch normally, without automation's background-throttling overrides.
+const measureSurface = process.env.AGENT_GUILD_MEASURE_SURFACE;
 if (process.env.AGENT_GUILD_DATA_DIR) app.setPath('userData', process.env.AGENT_GUILD_DATA_DIR);
 if (smoke) app.setPath('userData', join(app.getPath('temp'), `agent-guild-smoke-${process.pid}`));
 app.setName('Agent Guild');
@@ -30,6 +32,7 @@ let state: GuildState;
 let demoTimer: ReturnType<typeof setInterval> | undefined;
 let demoIndex = 0;
 let quitting = false;
+let positionSaveTimer: ReturnType<typeof setTimeout> | undefined;
 const connector = new OpenCodeConnector();
 
 function publish(): void {
@@ -53,13 +56,18 @@ function startDemo(): void {
   publish();
 }
 
-function showPanel(): void {
+function showPanel(page?: 'guild' | 'adventures'): void {
+  if (panel.isMinimized()) panel.restore();
   panel.show();
+  // This is an explicit player action from a non-focusable overlay, not a background update.
+  if (process.platform === 'darwin') app.focus({ steal: true });
   panel.focus();
+  if (page) panel.webContents.send('guild:navigate', page);
 }
 
 function place(
   position: { x: number; y: number } | null | undefined = state.profile.position,
+  persist = true,
 ): void {
   const displays = screen.getAllDisplays();
   const primary = screen.getPrimaryDisplay();
@@ -70,7 +78,14 @@ function place(
   const bounds = clampPlacement(position ?? undefined, areas, 260, 190);
   overlay.setBounds(bounds);
   state.profile = { ...state.profile, position: { x: bounds.x, y: bounds.y } };
-  save();
+  if (positionSaveTimer) clearTimeout(positionSaveTimer);
+  positionSaveTimer = undefined;
+  if (persist) save();
+  else
+    positionSaveTimer = setTimeout(() => {
+      positionSaveTimer = undefined;
+      save();
+    }, 200);
 }
 
 function setHidden(hidden: boolean): void {
@@ -84,7 +99,7 @@ function setHidden(hidden: boolean): void {
 function updateTray(): void {
   tray.setContextMenu(
     Menu.buildFromTemplate([
-      { label: 'Open your guild', click: showPanel },
+      { label: 'Open your guild', click: () => showPanel() },
       {
         label: state.profile.overlayHidden ? 'Show companion' : 'Hide companion',
         click: () => setHidden(!state.profile.overlayHidden),
@@ -133,6 +148,7 @@ async function setup(): Promise<void> {
     title: 'Agent Guild',
     backgroundColor: '#f8f7f2',
     show: false,
+    paintWhenInitiallyHidden: false,
     webPreferences: preferences,
   });
   overlay = new BrowserWindow({
@@ -146,6 +162,7 @@ async function setup(): Promise<void> {
     focusable: false,
     skipTaskbar: true,
     show: false,
+    paintWhenInitiallyHidden: false,
     webPreferences: preferences,
   });
   overlay.setAlwaysOnTop(true, 'floating');
@@ -162,9 +179,17 @@ async function setup(): Promise<void> {
       panel.hide();
     }
   });
-  panel.once('ready-to-show', () => panel.show());
-  overlay.once('ready-to-show', () => {
-    if (!state.profile.overlayHidden) overlay.showInactive();
+  // Initial hidden renderers must have a real hidden visibility state. With
+  // paintWhenInitiallyHidden disabled, did-finish-load replaces ready-to-show.
+  panel.webContents.once('did-finish-load', () => {
+    if (measureSurface !== 'overlay-only' && measureSurface !== 'tray-only') panel.show();
+    if (measureSurface)
+      console.log(JSON.stringify({ surface: 'panel', visible: panel.isVisible() }));
+  });
+  overlay.webContents.once('did-finish-load', () => {
+    if (!state.profile.overlayHidden && measureSurface !== 'tray-only') overlay.showInactive();
+    if (measureSurface)
+      console.log(JSON.stringify({ surface: 'overlay', visible: overlay.isVisible() }));
   });
   // NativeImage accepts bitmap/PNG, not SVG. An original black pixel lantern is a template icon.
   const pixels = Buffer.alloc(16 * 16 * 4);
@@ -196,13 +221,13 @@ async function setup(): Promise<void> {
   tray = new Tray(icon);
   tray.setToolTip('Agent Guild');
   updateTray();
-  tray.on('double-click', showPanel);
+  tray.on('double-click', () => showPanel());
   Menu.setApplicationMenu(
     Menu.buildFromTemplate([
       {
         label: 'Agent Guild',
         submenu: [
-          { label: 'Open your guild', accelerator: 'CmdOrCtrl+G', click: showPanel },
+          { label: 'Open your guild', accelerator: 'CmdOrCtrl+G', click: () => showPanel() },
           { type: 'separator' },
           { role: 'quit' },
         ],
@@ -231,7 +256,9 @@ async function setup(): Promise<void> {
     });
   });
   ipcMain.handle('guild:demo', startDemo);
-  ipcMain.on('guild:panel', showPanel);
+  ipcMain.on('guild:panel', (_event, page: unknown) =>
+    showPanel(page === 'adventures' ? 'adventures' : 'guild'),
+  );
   ipcMain.handle('guild:hidden', (_event, hidden: boolean) => setHidden(Boolean(hidden)));
   ipcMain.on('guild:reset-position', () => place(null));
   ipcMain.on('guild:interactive', (event, interactive: boolean) => {
@@ -242,10 +269,13 @@ async function setup(): Promise<void> {
     if (event.sender.id !== overlay.webContents.id || !Number.isFinite(dx) || !Number.isFinite(dy))
       return;
     const [x, y] = overlay.getPosition();
-    place({
-      x: x + Math.max(-2000, Math.min(2000, dx)),
-      y: y + Math.max(-2000, Math.min(2000, dy)),
-    });
+    place(
+      {
+        x: x + Math.max(-2000, Math.min(2000, dx)),
+        y: y + Math.max(-2000, Math.min(2000, dy)),
+      },
+      false,
+    );
   });
   ipcMain.handle('guild:save-image', async (_event, data: string) => {
     if (
@@ -309,10 +339,14 @@ else {
     if (panel) showPanel();
   });
   app.on('activate', () => {
-    if (panel) showPanel();
+    if (panel && !measureSurface) showPanel();
   });
   app.on('before-quit', () => {
     quitting = true;
+    if (positionSaveTimer) {
+      clearTimeout(positionSaveTimer);
+      store.save(state.profile);
+    }
     connector.stop();
     if (demoTimer) clearInterval(demoTimer);
   });

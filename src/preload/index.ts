@@ -12,7 +12,13 @@ const bridge: GuildBridge = {
   sessions: () => ipcRenderer.invoke('guild:sessions'),
   connect: (id) => ipcRenderer.invoke('guild:connect', id),
   demo: () => ipcRenderer.invoke('guild:demo'),
-  openPanel: () => ipcRenderer.send('guild:panel'),
+  openPanel: (page = 'guild') => ipcRenderer.send('guild:panel', page),
+  onNavigate: (callback) => {
+    const listener = (_event: Electron.IpcRendererEvent, page: 'guild' | 'adventures') =>
+      callback(page);
+    ipcRenderer.on('guild:navigate', listener);
+    return () => ipcRenderer.removeListener('guild:navigate', listener);
+  },
   hideOverlay: (hidden) => ipcRenderer.invoke('guild:hidden', hidden),
   resetPosition: () => ipcRenderer.send('guild:reset-position'),
   setInteractive: (interactive) => ipcRenderer.send('guild:interactive', interactive),

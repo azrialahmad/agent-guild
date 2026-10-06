@@ -50,9 +50,10 @@ function browserBridge(): GuildBridge {
       state = { ...state, activity: demoStep(initialActivity(), step++) };
       publish();
     },
-    openPanel: () => {
-      location.search = '';
+    openPanel: (page = 'guild') => {
+      location.search = `?page=${page}`;
     },
+    onNavigate: () => () => {},
     hideOverlay: async () => {},
     resetPosition: () => {},
     setInteractive: () => {},
