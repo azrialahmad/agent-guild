@@ -1,0 +1,77 @@
+{
+  "name": "agent-guild",
+  "version": "0.1.0",
+  "description": "A cozy desktop companion for live coding agents",
+  "private": true,
+  "type": "module",
+  "main": "out/main/index.js",
+  "author": "Azrial Ahmad",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "electron-vite dev",
+    "dev:web": "vite --config vite.web.config.ts --host 127.0.0.1",
+    "build": "electron-vite build",
+    "build:demo": "vite build --config vite.web.config.ts",
+    "start": "electron .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "check": "npm run typecheck && npm run test && npm run build && npm run format:check",
+    "test:desktop": "npm run build && playwright test",
+    "verify:live": "tsx scripts/verify-live.ts",
+    "verify:connector": "tsx scripts/verify-connector.ts",
+    "verify:plugin": "tsx scripts/verify-plugin.ts",
+    "measure:desktop": "tsx scripts/measure-desktop.ts",
+    "package:mac": "npm run build && electron-builder --mac --dir",
+    "icons": "node scripts/generate-icon.mjs"
+  },
+  "dependencies": {
+    "@fontsource/dm-sans": "^5.2.0",
+    "@fontsource/pixelify-sans": "^5.2.0",
+    "@fontsource/space-mono": "^5.2.0",
+    "@opencode/client": "2.0.19",
+    "lucide-react": "^0.468.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@opencode/plugin": "2.0.19",
+    "@playwright/test": "^1.58.0",
+    "@tailwindcss/vite": "^4.1.0",
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.7.0",
+    "electron": "^40.0.0",
+    "electron-builder": "^26.0.0",
+    "electron-vite": "^4.0.0",
+    "prettier": "^3.6.0",
+    "tailwindcss": "^4.1.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0",
+    "vite": "^6.4.0",
+    "vitest": "^3.2.0"
+  },
+  "build": {
+    "appId": "dev.azrial.agentguild",
+    "productName": "Agent Guild",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "out/**/*",
+      "package.json"
+    ],
+    "asar": true,
+    "npmRebuild": false,
+    "icon": "resources/icon.png",
+    "mac": {
+      "category": "public.app-category.developer-tools",
+      "identity": null
+    }
+  }
+}

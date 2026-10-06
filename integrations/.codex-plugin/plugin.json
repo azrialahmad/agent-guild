@@ -1,0 +1,6 @@
+{
+  "name": "agent-guild",
+  "version": "0.1.0",
+  "description": "Local lifecycle signals for the Agent Guild desktop companion",
+  "hooks": "./hooks/codex.json"
+}

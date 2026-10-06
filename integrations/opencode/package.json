@@ -1,0 +1,10 @@
+{
+  "name": "agent-guild-opencode",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "index.ts",
+  "dependencies": {
+    "@opencode/plugin": "2.0.19"
+  }
+}
