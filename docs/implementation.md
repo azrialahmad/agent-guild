@@ -9,7 +9,8 @@ This build implements the first live macOS slice of the Docmost PRD, with a smal
 - Electron host; React + TypeScript guild panel; original Canvas pixel art.
 - Transparent 260 × 190 desktop-edge overlay, non-focusable, floating above regular windows.
 - Per-pixel sprite hit testing requests native click-through for empty areas. Visible status and controls are interactive regions.
-- Menu-bar lantern, hide/restore, drag movement, display-work-area clamping, position reset, and saved placement.
+- Menu-bar lantern, hide/restore, captured pointer drags, display-work-area clamping, position reset, and saved placement.
+- Character opens My guild; sparkle opens Adventures directly. Explicit overlay actions restore minimized panels and bring the panel forward.
 - OpenCode V2 local-service discovery and authentication through the official client, pinned to 2.0.19.
 - One selected root session. Multiple sessions can be selected individually; simultaneous multi-character parties are not implemented.
 - Live tool/execution, permission, form, and session-shell events; concurrent operations are retained.
@@ -42,7 +43,7 @@ Credentials remain in the main process. The app does not issue model prompts or 
 
 Development environment: macOS on Apple Silicon, OpenCode 2.0.19, Node.js 22 portable toolchain. The computer's global Node installation was not replaced.
 
-Results: `npm run check` passed with 9 domain tests. The 2 native Electron tests passed against the source build and again against the packaged Apple Silicon `.app`. Static browser-demo production compilation also passed. The disposable real-runtime connector check passed against OpenCode 2.0.19.
+Results: `npm run check` passed with 9 domain tests. The 3 native Electron tests passed against the source build and again against the packaged Apple Silicon `.app`. Static browser-demo production compilation also passed. The disposable real-runtime connector check passed against OpenCode 2.0.19.
 
 ### Automated domain checks
 
@@ -66,8 +67,32 @@ Results: `npm run check` passed with 9 domain tests. The 2 native Electron tests
 - An empty rendered pixel has zero alpha (not just an opaque background with a matching color).
 - Hide/restore updates the native companion and saved state.
 - Repositioning and reset change native window bounds correctly.
+- Sparkle selects Adventures from a minimized panel; character selects My guild from a hidden panel and focuses it.
+- A pointer-driven grip drag changes native bounds and persists the new position to the profile file.
 
 These checks exercise an actual Electron application rather than browser-only mocks. The source and packaged build are checked separately before delivery.
+
+### Short resource baseline
+
+Measured on Apple Silicon macOS on 2026-10-06 using the packaged Electron 40.10.6 application. `npm run measure:desktop` launches a fresh, uninstrumented app with a disposable profile for each window mode, waits four seconds, and records ten approximately one-second samples. `ps` supplies cumulative CPU time and RSS for the main process and its descendants. CPU percentages use the convention **100% = one fully occupied core**, rather than Electron's normalized share of all logical cores.
+
+| Demo window mode  | Mean CPU (one-core %) | Mean summed RSS | Processes |
+| ----------------- | --------------------: | --------------: | --------: |
+| Panel + companion |                 2.12% |         454 MiB |         5 |
+| Companion only    |                 1.84% |         437 MiB |         5 |
+| Tray only         |                 0.87% |         424 MiB |         5 |
+
+The packaged `.app` occupies approximately 330 MiB on disk. RSS sums include shared pages and omit compressed/GPU allocations, so they are not a unique physical-memory footprint. Earlier snapshots of a longer-running instance were around 215 MiB; memory residency changes with time and system pressure. These short synthetic-demo samples do not establish sustained live-session CPU, memory stability, or battery impact.
+
+Playwright launches disable normal Chromium background throttling, so its initial exploratory resource samples are unsuitable for this baseline. The measurement command uses normal native launches, verifies which windows are visible, and removes only its own temporary profiles. To measure the packaged build:
+
+```sh
+AGENT_GUILD_EXECUTABLE="$PWD/release/mac-arm64/Agent Guild.app/Contents/MacOS/Agent Guild" npm run measure:desktop
+```
+
+Avoidable work removed: the static landscape has no animation clock; the companion paints directly without a React state update per frame, stops its clock while hidden or reduced-motion is active, and caches alpha pixels after painting instead of reading the canvas on each mouse move. Native windows use a genuinely hidden initial visibility state. Drag position saves are debounced for 200 ms and flushed on normal quit.
+
+The current build is CPU-light in this short demo sample but is not yet a low-memory utility. Next performance work should create the guild panel on demand, consider releasing its renderer after closing, and measure memory trends plus battery use during a real workday before expanding the desktop surface.
 
 ### Real OpenCode checks
 
@@ -88,7 +113,8 @@ These checks exercise an actual Electron application rather than browser-only mo
 | Dock auto-hide and all Dock placements                      | Work-area placement implemented; actual user configurations need manual testing |
 | Multi-display bounds and removed-display recovery           | Placement logic tested; physical mixed-DPI setup not validated                  |
 | Sleep/wake                                                  | Recovery handlers implemented; real sleep cycle not validated                   |
-| Battery/CPU under all-day use                               | Not measured                                                                    |
+| Short packaged-demo CPU and process-tree RSS                | Measured above; fresh launches, ten samples per mode                            |
+| Battery/CPU under all-day use                               | Not yet measured                                                                |
 | Intel macOS                                                 | Build configuration permits it; native testing was Apple Silicon                |
 | Windows/Linux                                               | Not validated or advertised as supported                                        |
 

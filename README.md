@@ -42,6 +42,7 @@ The connector was verified with **OpenCode 2.0.19** and uses its official `@open
 
 - Click the character to open your guild.
 - Hover to reveal pet, adventure, and drag controls.
+- The heart pets your companion; the sparkle opens **Adventures** directly.
 - Drag the grip to reposition within a display's usable work area.
 - Use the lantern menu-bar icon to show/hide, reset position, open the panel, or quit.
 - Closing the guild panel keeps the companion running. Quit from the app menu or lantern menu.
@@ -80,11 +81,14 @@ npm run check           # TypeScript, domain checks, production build, formattin
 npm run test:desktop    # Native Electron interaction and overlay checks
 npm run verify:live     # Read-only local OpenCode discovery/session check
 npm run verify:connector # Disposable real session + shell event integration; no model prompt
+npm run measure:desktop # macOS resource baseline with disposable profiles, no debugger
 ```
 
 `verify:connector` creates and removes its own temporary session and directory. It runs a harmless print command to verify real events. It does not run against your work session.
 
 Full-screen Spaces, Mission Control, mixed-DPI physical displays, real OS mouse pass-through, and longer-term battery impact still need hands-on testing. See the [implementation notes](docs/implementation.md) for the exact verified scope.
+
+The current Electron prototype has a moderate memory footprint. Short packaged-app samples on Apple Silicon measured about 437 MiB summed process RSS and 1.8% of one CPU core in overlay-only demo mode. RSS includes shared pages; this fresh-launch sample is not an all-day battery result. See the implementation notes for the method, other window modes, and next performance work.
 
 ## Product documentation
 

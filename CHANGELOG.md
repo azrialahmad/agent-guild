@@ -7,5 +7,8 @@
 - Short resumable adventures, idempotent rewards, unlockable cloaks, and fox companion.
 - Local profiles, backup export, reduced-motion controls, and optional-stat PNG postcards.
 - Synthetic demo, native desktop checks, real-runtime verification, and macOS packaging.
+- Overlay shortcuts select the requested page and restore/focus hidden or minimized panels; captured pointer drags save placement.
+- Static previews avoid animation timers; hidden companions pause their clock; sprite hit testing uses cached pixels; position writes are debounced.
+- Uninstrumented macOS process-tree resource measurement with isolated temporary profiles.
 
 This is an early local prototype; desktop compatibility and game retention are still being validated.
