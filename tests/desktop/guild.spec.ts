@@ -1,6 +1,8 @@
 import { _electron as electron, expect, test, type ElectronApplication } from '@playwright/test';
 import { join } from 'node:path';
 import { readFile } from 'node:fs/promises';
+import { send } from '../../integrations/bridge/send.mjs';
+import type { BridgePacket } from '../../src/shared/bridge-activity';
 
 async function panelWindow(app: ElectronApplication) {
   await expect
@@ -8,6 +10,69 @@ async function panelWindow(app: ElectronApplication) {
     .toBe(true);
   return app.windows().find((window) => window.url().includes('surface=panel'))!;
 }
+
+test('desktop follows the executing plugin source and never rewards observed tool activity', async () => {
+  const app = await electron.launch({
+    executablePath: process.env.AGENT_GUILD_EXECUTABLE,
+    args: process.env.AGENT_GUILD_EXECUTABLE ? [] : ['.'],
+    env: { ...process.env, AGENT_GUILD_SMOKE: '1', AGENT_GUILD_SESSION: 'ses_fixture' },
+  });
+  try {
+    const panel = await panelWindow(app);
+    await expect(
+      panel.getByRole('heading', { name: 'A little company while you create.' }),
+    ).toBeVisible();
+    const path = join(await app.evaluate(({ app }) => app.getPath('userData')), 'activity.sock');
+    const emit = (type: BridgePacket['type'], extra: Partial<BridgePacket> = {}) =>
+      send(
+        {
+          schema: 1,
+          id: crypto.randomUUID(),
+          producer: 'private-server',
+          harness: 'opencode',
+          sessionId: 'ses_fixture',
+          title: 'Private-server fixture',
+          project: 'fixture',
+          time: Date.now(),
+          type,
+          ...extra,
+        },
+        path,
+      );
+    await emit('turn-start');
+    await expect
+      .poll(() => panel.evaluate(async () => (await window.guild!.state()).activity.sessionId))
+      .toBe('ses_fixture');
+    await panel.getByRole('button', { name: 'Settings', exact: true }).click();
+    await panel.getByRole('button', { name: 'Find local sessions' }).click();
+    await panel.getByLabel('Choose a session').selectOption({
+      label: '● Private-server fixture · fixture · opencode plugin · private-server',
+    });
+    await panel.getByRole('button', { name: 'Follow this session' }).click();
+    await emit('tool-start', { toolId: 'patch-1', toolName: 'patch' });
+    await expect
+      .poll(() => panel.evaluate(async () => (await window.guild!.state()).activity.kind))
+      .toBe('editing');
+    await panel.getByRole('button', { name: 'Agent activity', exact: true }).click();
+    await expect(panel.getByText(/Source: opencode plugin · private-server/)).toBeVisible();
+    await emit('attention', { toolId: 'permission-1' });
+    await expect
+      .poll(() => panel.evaluate(async () => (await window.guild!.state()).activity.kind))
+      .toBe('attention');
+    await emit('attention-clear', { toolId: 'permission-1' });
+    await emit('tool-end', { toolId: 'patch-1', toolName: 'patch' });
+    await emit('turn-end');
+    const state = await panel.evaluate(async () => window.guild!.state());
+    expect(state.activity).toMatchObject({
+      kind: 'idle',
+      label: 'Turn ended · outcome unverified',
+    });
+    expect(state.profile.xp).toBe(0);
+    expect(state.profile.completed).toHaveLength(0);
+  } finally {
+    await app.close();
+  }
+});
 
 test('overlay controls open the requested page and support an actual pointer drag', async () => {
   const app = await electron.launch({

@@ -16,7 +16,7 @@ const messages = await client.message.list({ sessionID: session.id, limit: 30, o
 const permissions = await client.permission.list({ sessionID: session.id });
 const forms = await client.session.form.list({ sessionID: session.id });
 const projection = new OpenCodeProjection(session.id);
-projection.reconcile(session, messages.data, Boolean(active[session.id]), [
+projection.reconcile(session, [...messages.data].reverse(), Boolean(active[session.id]), [
   ...permissions.map((item) => item.id),
   ...forms.map((item) => item.id),
 ]);

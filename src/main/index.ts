@@ -17,6 +17,7 @@ import type { GameAction, GuildState } from '../shared/types';
 import { OpenCodeConnector, listSessions } from './connector';
 import { ProfileStore } from './persistence';
 import { clampPlacement } from './placement';
+import { ActivityBridge } from './activity-bridge';
 
 const smoke = process.env.AGENT_GUILD_SMOKE === '1';
 // Resource measurements launch normally, without automation's background-throttling overrides.
@@ -29,6 +30,9 @@ let overlay: BrowserWindow;
 let tray: Tray;
 let store: ProfileStore;
 let state: GuildState;
+let activityBridge: ActivityBridge;
+let liveTransport: 'service' | 'bridge' | undefined;
+let requestedSession = process.env.AGENT_GUILD_SESSION;
 let demoTimer: ReturnType<typeof setInterval> | undefined;
 let demoIndex = 0;
 let quitting = false;
@@ -47,6 +51,8 @@ function save(): void {
 
 function startDemo(): void {
   connector.stop();
+  activityBridge?.stopFollowing();
+  liveTransport = undefined;
   if (demoTimer) clearInterval(demoTimer);
   state.activity = demoStep(initialActivity(), demoIndex++);
   demoTimer = setInterval(() => {
@@ -140,6 +146,20 @@ async function setup(): Promise<void> {
     sandbox: true,
     nodeIntegration: false,
   };
+  activityBridge = new ActivityBridge(
+    process.env.AGENT_GUILD_SOCKET ?? join(app.getPath('userData'), 'activity.sock'),
+    (key, sessionId) => {
+      if (!requestedSession || sessionId !== requestedSession) return;
+      requestedSession = undefined;
+      if (demoTimer) clearInterval(demoTimer);
+      connector.stop();
+      liveTransport = 'bridge';
+      activityBridge.follow(key, (activity) => {
+        state = { ...state, activity };
+        publish();
+      });
+    },
+  );
   panel = new BrowserWindow({
     width: 1080,
     height: 800,
@@ -245,17 +265,40 @@ async function setup(): Promise<void> {
     publish();
     return state;
   });
-  ipcMain.handle('guild:sessions', () => listSessions());
+  ipcMain.handle('guild:sessions', async () => {
+    const incoming = activityBridge.sessions();
+    const native = await listSessions().catch((error: unknown) => {
+      if (incoming.length) return [];
+      throw error;
+    });
+    return [...incoming, ...native];
+  });
   ipcMain.handle('guild:connect', (_event, id: string) => {
+    requestedSession = undefined;
+    if (typeof id === 'string' && id.startsWith('bridge:')) {
+      connector.stop();
+      liveTransport = 'bridge';
+      if (demoTimer) clearInterval(demoTimer);
+      activityBridge.follow(id, (activity) => {
+        state = { ...state, activity };
+        publish();
+      });
+      return;
+    }
     if (typeof id !== 'string' || !/^ses[\w-]+$/.test(id))
       throw new Error('Invalid session identifier');
     if (demoTimer) clearInterval(demoTimer);
+    activityBridge.stopFollowing();
+    liveTransport = 'service';
     connector.connect(id, (activity) => {
       state = { ...state, activity };
       publish();
     });
   });
-  ipcMain.handle('guild:demo', startDemo);
+  ipcMain.handle('guild:demo', () => {
+    requestedSession = undefined;
+    startDemo();
+  });
   ipcMain.on('guild:panel', (_event, page: unknown) =>
     showPanel(page === 'adventures' ? 'adventures' : 'guild'),
   );
@@ -321,7 +364,7 @@ async function setup(): Promise<void> {
   });
   powerMonitor.on('resume', () => {
     place();
-    if (state.activity.mode === 'live' && state.activity.sessionId)
+    if (liveTransport === 'service' && state.activity.mode === 'live' && state.activity.sessionId)
       connector.connect(state.activity.sessionId, (activity) => {
         state.activity = activity;
         publish();
@@ -330,6 +373,7 @@ async function setup(): Promise<void> {
   load(panel, 'panel');
   load(overlay, 'overlay');
   startDemo();
+  await activityBridge.start();
 }
 
 const lock = app.requestSingleInstanceLock();
@@ -348,6 +392,7 @@ else {
       store.save(state.profile);
     }
     connector.stop();
+    activityBridge?.stop();
     if (demoTimer) clearInterval(demoTimer);
   });
   void app

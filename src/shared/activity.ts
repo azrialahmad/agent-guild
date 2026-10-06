@@ -13,7 +13,7 @@ export function initialActivity(mode: Activity['mode'] = 'demo'): Activity {
 }
 
 export function toolKind(name: string): WorkKind {
-  const short = name.split('.').at(-1)?.toLowerCase() ?? name.toLowerCase();
+  const short = (name.split(/\.|__/).at(-1) ?? name).replace(/^functions_/, '').toLowerCase();
   if (['read', 'grep', 'glob', 'search', 'list', 'webfetch', 'websearch'].includes(short))
     return 'reading';
   if (['patch', 'edit', 'write', 'apply_patch', 'multiedit'].includes(short)) return 'editing';

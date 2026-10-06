@@ -5,18 +5,26 @@ import { basename } from 'node:path';
 import { OpenCodeProjection } from '../shared/opencode';
 import type { Activity, SessionOption } from '../shared/types';
 
-async function discoverClient(): Promise<{ client: OpenCodeClient; version: string }> {
+async function discoverClient(): Promise<{
+  client: OpenCodeClient;
+  version: string;
+  source: string;
+}> {
   const endpoint = await Service.discover();
   if (!endpoint)
     throw new Error('Start OpenCode V2, then refresh sessions. No local service was found.');
   const client = OpenCode.make({ baseUrl: endpoint.url, headers: Service.headers(endpoint) });
   const info = await client.server.info({ signal: AbortSignal.timeout(8000) });
   if (!info.version.startsWith('2.')) throw new Error('This connector supports OpenCode V2 only.');
-  return { client, version: info.version };
+  return {
+    client,
+    version: info.version,
+    source: `OpenCode shared service · ${new URL(endpoint.url).host}`,
+  };
 }
 
 export async function listSessions(): Promise<SessionOption[]> {
-  const { client } = await discoverClient();
+  const { client, source } = await discoverClient();
   const options = { signal: AbortSignal.timeout(8000) };
   const [sessions, active] = await Promise.all([
     client.session.list({ limit: 50, parentID: 'null' }, options),
@@ -27,6 +35,7 @@ export async function listSessions(): Promise<SessionOption[]> {
     title: session.title || 'Untitled session',
     project: basename(session.location.directory),
     active: Boolean(active[session.id]),
+    source,
   }));
 }
 
@@ -57,7 +66,7 @@ export class OpenCodeConnector {
       let streamController: AbortController | undefined;
       let refreshTimer: ReturnType<typeof setInterval> | undefined;
       try {
-        const { client, version } = await discoverClient();
+        const { client, version, source } = await discoverClient();
         if (signal.aborted) return;
         streamController = new AbortController();
         const streamSignal = AbortSignal.any([signal, streamController.signal]);
@@ -74,7 +83,14 @@ export class OpenCodeConnector {
             for await (const event of client.event.subscribe({ signal: streamSignal })) {
               if (event.type === 'server.connected') resolveConnected();
               else if (!ready) queued.push(event);
-              else if (projection.accept(event)) publish(projection.activity);
+              else if (projection.accept(event)) {
+                if (projection.activity.source)
+                  projection.activity.source = {
+                    ...projection.activity.source,
+                    lastSignal: Date.now(),
+                  };
+                publish(projection.activity);
+              }
             }
             if (!streamSignal.aborted) throw new Error('The OpenCode event stream closed.');
           } catch (error) {
@@ -109,6 +125,12 @@ export class OpenCodeConnector {
           [...permissions.map((item) => item.id), ...forms.map((item) => item.id)],
         );
         projection.activity.version = version;
+        projection.activity.source = {
+          harness: 'opencode',
+          transport: 'service',
+          label: source,
+          lastSignal: Date.now(),
+        };
         for (const event of queued) projection.accept(event);
         ready = true;
         failures = 0;
@@ -128,6 +150,12 @@ export class OpenCodeConnector {
                 ...projection.activity,
                 usage: session.tokens,
                 sessionTitle: session.title || 'Untitled session',
+                source: {
+                  harness: 'opencode',
+                  transport: 'service',
+                  label: source,
+                  lastSignal: Date.now(),
+                },
               };
               publish(projection.activity);
             })

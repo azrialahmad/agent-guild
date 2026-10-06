@@ -1,0 +1,8 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "agent-guild",
+  "version": "0.1.0",
+  "description": "Local lifecycle signals for the Agent Guild desktop companion",
+  "license": "MIT",
+  "extensions": { "com.openai": { "hooks": "./hooks/codex.json" } }
+}

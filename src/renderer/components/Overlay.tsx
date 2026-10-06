@@ -60,6 +60,11 @@ export function Overlay({ state }: { state: GuildState }) {
       <div
         className={`overlay-status ${state.activity.kind === 'attention' ? 'needs-attention' : ''}`}
         data-hit
+        title={
+          state.activity.source
+            ? `${state.activity.source.label}\nLast signal: ${new Date(state.activity.source.lastSignal).toLocaleTimeString()}`
+            : undefined
+        }
       >
         <span className={`status-dot ${state.activity.kind}`} />
         {state.activity.mode === 'demo' ? 'DEMO · ' : ''}

@@ -24,6 +24,30 @@ function event(type: string, data: Record<string, unknown>, sessionID = session.
 }
 
 describe('OpenCode V2 event projection', () => {
+  it('does not call shared database activity idle when a different server may own the turn', () => {
+    const projection = new OpenCodeProjection(session.id);
+    projection.reconcile(
+      { ...session, time: { ...session.time, idle: 1700000000100 } },
+      [
+        {
+          type: 'assistant',
+          id: 'message-in-flight',
+          agent: 'build',
+          model: { providerID: 'test', id: 'model' },
+          time: { created: 1700000001000 },
+          content: [],
+        },
+      ],
+      false,
+      [],
+    );
+    expect(projection.activity).toMatchObject({
+      kind: 'unknown',
+      label: 'Saved activity · execution source unconfirmed',
+    });
+    projection.accept(event('session.execution.started', {}));
+    expect(projection.activity.kind).toBe('working');
+  });
   it('recovers a running shell from a real V2 message shape even without a foreground model turn', () => {
     const projection = new OpenCodeProjection(session.id);
     projection.reconcile(

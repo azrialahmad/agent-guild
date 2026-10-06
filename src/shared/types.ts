@@ -30,6 +30,12 @@ export interface Activity {
   error?: string;
   historyNote?: string;
   version?: string;
+  source?: {
+    harness: 'opencode' | 'codex' | 'claude-code';
+    transport: 'service' | 'plugin' | 'hook';
+    label: string;
+    lastSignal: number;
+  };
 }
 
 export type Cloak = 'lavender' | 'fern' | 'sunset' | 'midnight';
@@ -62,6 +68,7 @@ export interface SessionOption {
   title: string;
   project: string;
   active: boolean;
+  source?: string;
 }
 
 export interface GuildState {

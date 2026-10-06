@@ -1,0 +1,12 @@
+{
+  "name": "agent-guild-local",
+  "interface": { "displayName": "Agent Guild" },
+  "plugins": [
+    {
+      "name": "agent-guild",
+      "source": { "source": "local", "path": "./integrations" },
+      "policy": { "installation": "AVAILABLE", "authentication": "ON_INSTALL" },
+      "category": "Productivity"
+    }
+  ]
+}

@@ -9,7 +9,8 @@ A macOS-first, open-source desktop companion. Pixel characters reflect live codi
 ## What you can do
 
 - Keep a transparent pixel companion near your Dock while working in other apps.
-- Follow an existing **OpenCode V2** session: reading, editing, commands, attention requests, and turn lifecycle.
+- Follow an existing **OpenCode V2** session from its executing plugin or the shared service: reading, editing, commands, attention requests, and turn lifecycle.
+- Receive experimental **Codex / Claude Code** lifecycle hooks through the local activity bridge.
 - Inspect the source events behind its work state.
 - Play three short memory-trail variants, leave midway, and resume your saved adventure.
 - Earn adventure XP, unlock four cloaks, and meet a woodland fox.
@@ -36,7 +37,11 @@ The app starts in demo mode. To connect a real agent:
 3. Choose a session and click **Follow this session**.
 4. Return to your coding interface. The companion follows observed activity without issuing prompts or approving tools.
 
-The connector was verified with **OpenCode 2.0.19** and uses its official `@opencode/client`. It discovers the local background service and keeps its authentication in the desktop host. Other V2 versions need compatibility verification; V1, Claude Code, Codex, and remote agents are not implemented yet.
+The direct connector uses the official `@opencode/client` and the shared V2 background service. A private-server UI can read the same saved sessions while owning a separate execution: prefer the **OpenCode plugin** source in that case. Native plugin checks passed on **OpenCode 2.0.19** and OpenChamber's **2.0.15** server. Codex/Claude hook payloads and transport are tested, but live CLI loading/execution is not yet verified. V1 and remote/cloud agents are not supported.
+
+### Coding-agent adapters
+
+See [`integrations/README.md`](integrations/README.md) for OpenCode plugin configuration, Claude Code local-plugin loading, and Codex plugin/hook setup. This checkout enables the OpenCode plugin for its own project through `opencode.json`. The adapters send lifecycle metadata from the executing harness to the existing desktop process; they add no separate always-running helper or model prompt. Source identity and last-signal time are shown in **Agent activity** and the overlay status tooltip. Stale signals become unknown, not idle.
 
 ### Desktop controls
 
@@ -81,6 +86,7 @@ npm run check           # TypeScript, domain checks, production build, formattin
 npm run test:desktop    # Native Electron interaction and overlay checks
 npm run verify:live     # Read-only local OpenCode discovery/session check
 npm run verify:connector # Disposable real session + shell event integration; no model prompt
+npm run verify:plugin   # Real OpenCode plugin → local bridge; disposable project/session
 npm run measure:desktop # macOS resource baseline with disposable profiles, no debugger
 ```
 

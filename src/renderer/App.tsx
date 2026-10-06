@@ -217,6 +217,11 @@ export function App() {
   if (!state) return <div className="loading-screen">{notice || 'Opening your guild…'}</div>;
   if (overlay) return <Overlay state={state} />;
   const { profile, activity } = state;
+  const harness = activity.source
+    ? { opencode: 'OpenCode', codex: 'Codex', 'claude-code': 'Claude Code' }[
+        activity.source.harness
+      ]
+    : 'Coding agent';
   const completed = profile.completed.length;
   const cloak = CLOAKS.find((item) => item.id === profile.cloak)!;
   const title = NAV.find((item) => item.id === page)!.label;
@@ -275,7 +280,7 @@ export function App() {
               <span
                 className={`status-dot ${activity.connection === 'connected' ? 'working' : activity.mode === 'demo' ? 'reading' : 'unknown'}`}
               />
-              {activity.mode === 'demo' ? 'Demo mode' : `OpenCode ${activity.version ?? ''}`}
+              {activity.mode === 'demo' ? 'Demo mode' : `${harness} ${activity.version ?? ''}`}
             </span>
             <button
               className="icon-button"
@@ -378,7 +383,7 @@ export function App() {
                         ? 'Synthetic agent activity lets you try the guild immediately. Connect a real session when you’re ready.'
                         : activity.connection === 'connected'
                           ? 'Following your real session. Turn ended means the agent stopped—not that the code is correct.'
-                          : activity.error || 'Connecting to your local OpenCode service…'}
+                          : activity.error || 'Connecting to your coding agent…'}
                     </p>
                     <button
                       className="text-button"
@@ -537,7 +542,7 @@ export function App() {
                   <span className="eyebrow">
                     {activity.mode === 'demo'
                       ? 'SYNTHETIC DEMO EVENTS'
-                      : 'SELECTED OPENCODE SESSION'}
+                      : 'SELECTED HARNESS SESSION'}
                   </span>
                   <h2>{activity.sessionTitle}</h2>
                 </div>
@@ -547,6 +552,13 @@ export function App() {
                 {activity.historyNote ||
                   'These demo events are fictional. They never award game XP.'}
               </p>
+              {activity.source && (
+                <p className="fine-print">
+                  Source: {activity.source.label}
+                  <br />
+                  Last signal received: {new Date(activity.source.lastSignal).toLocaleTimeString()}
+                </p>
+              )}
               <div className="usage-grid">
                 {[
                   ['Input tokens', activity.usage?.input],
@@ -562,8 +574,10 @@ export function App() {
                 ))}
               </div>
               <p className="fine-print">
-                Session totals reported by OpenCode. Token consumption is not a measure of
-                productivity.
+                {activity.usage
+                  ? 'Selected-session totals reported by OpenCode.'
+                  : 'This source does not provide token totals.'}{' '}
+                Token consumption is not a measure of productivity.
               </p>
               <div className="event-list">
                 {activity.events.length ? (
@@ -599,10 +613,11 @@ export function App() {
             <div className="settings-grid">
               <section className="card settings-card">
                 <span className="eyebrow">A BRIDGE TO YOUR REAL WORK</span>
-                <h2>Connect OpenCode</h2>
+                <h2>Connect your coding agent</h2>
                 <p>
-                  Follow an existing local OpenCode V2 session. Your usual coding interface stays in
-                  charge.
+                  Follow signals from an OpenCode plugin, Codex hooks, or Claude Code hooks. Your
+                  usual coding interface stays in charge. The shared OpenCode service is also
+                  available.
                 </p>
                 <button className="button" onClick={refreshSessions} disabled={loading}>
                   <RefreshCw size={16} className={loading ? 'spin' : ''} />
@@ -620,7 +635,7 @@ export function App() {
                   {sessions.map((session) => (
                     <option key={session.id} value={session.id}>
                       {session.active ? '● ' : ''}
-                      {session.title} · {session.project}
+                      {session.title} · {session.project} · {session.source ?? 'Local session'}
                     </option>
                   ))}
                 </select>
@@ -649,7 +664,7 @@ export function App() {
                 </button>
                 <p className="fine-print">
                   {isDesktop
-                    ? 'Verified target: OpenCode 2.0.19. Credentials remain in the desktop host.'
+                    ? 'Install the adapter from integrations/README.md, run the harness, then refresh. Prefer its plugin/hook entry when a UI uses a private server. Source and last-signal time appear in Agent activity.'
                     : 'Browser preview: install the desktop app for live connections.'}
                 </p>
               </section>

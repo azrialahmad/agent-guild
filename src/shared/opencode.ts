@@ -15,6 +15,7 @@ export class OpenCodeProjection {
   private pending = new Set<string>();
   private seen = new Set<string>();
   private running = false;
+  private uncertain = false;
 
   constructor(readonly sessionId: string) {
     this.activity = { ...initialActivity('live'), sessionId };
@@ -27,6 +28,12 @@ export class OpenCodeProjection {
     pending: string[],
   ): void {
     this.running = running;
+    // Another server can read the same database without owning this execution.
+    const newest = messages.at(-1);
+    this.uncertain =
+      !running &&
+      info.time.idle !== undefined &&
+      Boolean(newest && newest.time.created > info.time.idle);
     this.pending = new Set(pending);
     this.tools.clear();
     this.shells.clear();
@@ -113,6 +120,7 @@ export class OpenCodeProjection {
         record = false;
     }
     if (!record) return false;
+    this.uncertain = false;
     this.refresh();
     this.activity = addEvent(this.activity, {
       id: event.id,
@@ -142,7 +150,7 @@ export class OpenCodeProjection {
   private refresh(): void {
     const active = [...this.tools.values()].filter((tool) => tool.running);
     let kind: WorkKind = this.running ? 'working' : 'idle';
-    let label = this.running ? 'Agent is working' : 'No active turn';
+    let label = this.running ? 'Agent is working' : 'No active turn on this server';
     if (active.length && this.running) {
       kind = toolKind(active.at(-1)!.name);
       label = active.at(-1)!.name;
@@ -154,6 +162,10 @@ export class OpenCodeProjection {
     if (this.pending.size) {
       kind = 'attention';
       label = 'Your attention is needed';
+    }
+    if (this.uncertain) {
+      kind = 'unknown';
+      label = 'Saved activity · execution source unconfirmed';
     }
     this.activity = {
       ...this.activity,
