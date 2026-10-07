@@ -113,6 +113,9 @@ function showPanel(page?: 'guild' | 'adventures'): void {
     minHeight: 500,
     title: 'Agent Guild',
     backgroundColor: '#f8f7f2',
+    ...(process.platform === 'darwin'
+      ? { titleBarStyle: 'hidden' as const, trafficLightPosition: { x: 14, y: 20 } }
+      : {}),
     show: false,
     paintWhenInitiallyHidden: false,
     webPreferences: preferences(),
@@ -242,13 +245,16 @@ function updateTray(): void {
 function load(window: BrowserWindow, surface: string, page?: 'guild' | 'adventures'): void {
   window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   window.webContents.on('will-navigate', (event) => event.preventDefault());
+  const query = {
+    surface,
+    ...(page ? { page } : {}),
+    ...(surface === 'panel' && process.platform === 'darwin' ? { titlebar: 'integrated' } : {}),
+  };
   if (process.env.ELECTRON_RENDERER_URL)
-    void window.loadURL(
-      `${process.env.ELECTRON_RENDERER_URL}?${new URLSearchParams({ surface, ...(page ? { page } : {}) })}`,
-    );
+    void window.loadURL(`${process.env.ELECTRON_RENDERER_URL}?${new URLSearchParams(query)}`);
   else
     void window.loadFile(join(import.meta.dirname, '../renderer/index.html'), {
-      query: { surface, ...(page ? { page } : {}) },
+      query,
     });
 }
 

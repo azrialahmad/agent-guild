@@ -123,6 +123,29 @@ p {
   align-items: center;
   gap: 3px;
 }
+/* Native macOS traffic lights share the app's header instead of a second title row. */
+.app-shell.integrated-titlebar {
+  max-width: none;
+}
+.integrated-titlebar .topbar {
+  padding-left: 88px;
+  gap: 8px;
+  -webkit-app-region: drag;
+  user-select: none;
+}
+.integrated-titlebar .brand {
+  font-size: 21px;
+  gap: 6px;
+}
+.integrated-titlebar .topbar-right {
+  -webkit-app-region: no-drag;
+}
+.integrated-titlebar .panel-tabs,
+.integrated-titlebar .main-content {
+  width: 100%;
+  max-width: 560px;
+  align-self: center;
+}
 .mode-badge {
   display: inline-flex;
   align-items: center;

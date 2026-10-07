@@ -156,6 +156,8 @@ export function App() {
   const [name, setName] = useState('');
   const actionBusy = useRef(false);
   const overlay = new URLSearchParams(location.search).get('surface') === 'overlay';
+  const integratedTitlebar =
+    isDesktop && new URLSearchParams(location.search).get('titlebar') === 'integrated';
 
   useEffect(() => {
     let received = false;
@@ -227,7 +229,9 @@ export function App() {
   const title = NAV.find((item) => item.id === page)!.label;
 
   return (
-    <div className={`app-shell ${profile.reducedMotion ? 'reduce-motion' : ''}`}>
+    <div
+      className={`app-shell ${integratedTitlebar ? 'integrated-titlebar' : ''} ${profile.reducedMotion ? 'reduce-motion' : ''}`}
+    >
       <div className="main-shell">
         <header className="topbar">
           <div className="brand">

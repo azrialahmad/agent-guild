@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Blend the macOS window controls into the app header, removing the separate system title row and duplicate title while keeping a draggable header and native traffic lights.
 - Companion-first startup; create the guild panel on demand and release its renderer when closed while preserving saved adventures and live tracking.
 - Persist the selected harness/session/source separately from game progress, restore it after restart, and show connecting/disconnected/unknown states explicitly.
 - Stable hashed OpenCode source IDs survive producer PID changes; conflicting live identities require explicit selection. Demo clears the remembered connection.

@@ -9,6 +9,7 @@ This build implements the first live macOS slice of the Docmost PRD, with a smal
 - Electron host; React + TypeScript guild panel; original Canvas pixel art.
 - Startup creates only the companion and menu-bar lantern. The guild panel is created by an explicit open action and destroyed on close, releasing its renderer. Game state and tracking live in the main process.
 - Compact 520 × 620 utility panel (minimum 420 × 500), replacing the 1080 × 800 dashboard. Three primary tabs, header activity/settings/share shortcuts, and a single companion/status view.
+- On macOS, a hidden native title bar places the original traffic lights within the warm app header. Reserved left padding keeps content clear of the controls; the header is draggable and status/action controls are explicitly non-draggable. There is one visible guild title.
 - Adventure history and signal explanations use native expandable disclosures. Secondary pages scroll inside the panel; navigation remains available. The default companion screen fits without scrolling.
 - Transparent 260 × 190 desktop-edge overlay, non-focusable, floating above regular windows.
 - Per-pixel sprite hit testing requests native click-through for empty areas. Visible status and controls are interactive regions.
@@ -85,6 +86,7 @@ Results: `npm run check` passed with 16 domain tests. The 6 native Electron case
 - A pointer-driven grip drag changes native bounds and persists the new position to the profile file.
 - A selected private-server plugin source drives editing/attention/turn-end states and exposes source metadata. Observed tools and turn end leave XP and rewards unchanged.
 - Compact native window dimensions and the no-scroll default companion view are asserted. Adventure history expands on demand; adventures, wardrobe unlocks, and postcard export still work at the smaller size.
+- The integrated macOS header was checked at 420/520/800-pixel widths, including Claude Code and disconnected labels: content avoids the reserved native-control area and has no horizontal overflow. Header drag regions exclude action/status controls, native traffic-light position is retained, and content fills the full window height. Physical title-bar dragging still needs a hands-on pass.
 - Restart the app with an isolated persisted bridge choice: wrong harness/source/session signals are ignored, a changed producer PID with the same stable identity reconnects, overlapping producers stay unknown until explicitly chosen, and source end can recover to the remaining matching runtime.
 - Tracking continues with the panel destroyed. Rewards remain unchanged throughout recovery. Choosing demo clears disk preferences and remains demo on the next restart. A missing saved service session stays disconnected/unknown while preserving its preference for retry.
 

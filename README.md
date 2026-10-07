@@ -21,6 +21,8 @@ The desktop companion is a transparent overlay. The app starts with the companio
 
 The panel is a compact **520 × 620** window: three tabs for your companion, adventures, and wardrobe, with activity/settings/share shortcuts in the header. Adventure history and signal explanations expand when needed.
 
+On macOS, native traffic-light controls sit in the same warm header as the guild logo. Drag the header to move the window.
+
 ## Run locally
 
 Requires **Node.js 22+**, npm, and macOS. The initial native checks were run on Apple Silicon. Windows and Linux support are planned.
