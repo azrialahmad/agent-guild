@@ -17,9 +17,11 @@ A macOS-first, open-source desktop companion. Pixel characters reflect live codi
 - Export a PNG guild postcard with optional adventure activity and selected-session token totals.
 - Try the clearly labeled synthetic demo immediately.
 
-The desktop companion is a transparent overlay. The guild panel opens when you want to play, customize, or inspect. Game adventures are fictional; they do not claim to explain hidden agent reasoning or code correctness.
+The desktop companion is a transparent overlay. The app starts with the companion and menu-bar lantern. The guild panel is created when you open it, and closing it releases its renderer while adventures and tracking continue in the main process. Game adventures are fictional; they do not claim to explain hidden agent reasoning or code correctness.
 
 The panel is a compact **520 × 620** window: three tabs for your companion, adventures, and wardrobe, with activity/settings/share shortcuts in the header. Adventure history and signal explanations expand when needed.
+
+On macOS, native traffic-light controls sit in the same warm header as the guild logo. Drag the header to move the window.
 
 ## Run locally
 
@@ -32,12 +34,14 @@ npm ci
 npm run dev
 ```
 
-The app starts in demo mode. To connect a real agent:
+First launch uses demo activity. Click the character or use **lantern → Open your guild** to open the panel. To connect a real agent:
 
-1. Start your usual OpenCode V2 interface.
+1. Enable your harness adapter through **Settings → Adapter setup → Open adapter setup guide**, then use your usual coding interface.
 2. In Agent Guild, open **Settings → Find local sessions**.
 3. Choose a session and click **Follow this session**.
 4. Return to your coding interface. The companion follows observed activity without issuing prompts or approving tools.
+
+The selected harness, session, and source are remembered. On restart, a plugin/hook selection waits in **Connecting / unknown** until that exact source reports a fresh signal; the shared OpenCode connector retries automatically. Missing signals become **Disconnected / unknown**. Two live producers with the same stable identity require an explicit source choice. **Use demo activity** clears the remembered connection.
 
 The direct connector uses the official `@opencode/client` and the shared V2 background service. A private-server UI can read the same saved sessions while owning a separate execution: prefer the **OpenCode plugin** source in that case. Native plugin checks passed on **OpenCode 2.0.19** and OpenChamber's **2.0.15** server. Codex/Claude hook payloads and transport are tested, but live CLI loading/execution is not yet verified. V1 and remote/cloud agents are not supported.
 
@@ -52,7 +56,7 @@ See [`integrations/README.md`](integrations/README.md) for OpenCode plugin confi
 - The heart pets your companion; the sparkle opens **Adventures** directly.
 - Drag the grip to reposition within a display's usable work area.
 - Use the lantern menu-bar icon to show/hide, reset position, open the panel, or quit.
-- Closing the guild panel keeps the companion running. Quit from the app menu or lantern menu.
+- Closing the guild panel frees its renderer and keeps the companion tracking. Click the character or lantern to open a fresh panel and resume saved adventures. Quit from the app menu or lantern menu.
 - **Settings → Quiet animations** respects your preference; system reduced-motion settings are also respected.
 
 ### Browser preview
@@ -77,7 +81,7 @@ Adventures grant **40 XP**; levels require 100 XP. Cloaks unlock after 0, 1, 3, 
 
 The adventure calendar records game completions over local calendar days, not coding productivity. Share cards use the last 28 local days; the guild panel shows 84.
 
-The desktop stores one versioned `profile.json` in Electron's user-data directory (normally `~/Library/Application Support/Agent Guild/`). Rewards and adventure state are written together with atomic file replacement. Raw source-event details are kept only in memory, capped at 80 events. No analytics service or cloud upload is included.
+The desktop stores a versioned `profile.json` in Electron's user-data directory (normally `~/Library/Application Support/Agent Guild/`). Rewards and adventure state are written together with atomic file replacement. A separate atomic `connection.json` remembers only harness/transport, session ID/title, and the bridge's source identity; it contains no credentials or event history. Invalid connection preferences are preserved and shown as unknown until you choose a new source or demo. Raw source-event details are kept only in memory, capped at 80 events. No analytics service or cloud upload is included.
 
 Use **Settings → Back up your guild** to export your profile. For manual recovery, quit the app and replace `profile.json` with a valid backup. Corrupt or unsupported saves are preserved and reported rather than silently reset. Browser and desktop profiles are separate.
 
@@ -96,7 +100,7 @@ npm run measure:desktop # macOS resource baseline with disposable profiles, no d
 
 Full-screen Spaces, Mission Control, mixed-DPI physical displays, real OS mouse pass-through, and longer-term battery impact still need hands-on testing. See the [implementation notes](docs/implementation.md) for the exact verified scope.
 
-The current Electron prototype has a moderate memory footprint. Short packaged-app samples on Apple Silicon measured about 437 MiB summed process RSS and 1.8% of one CPU core in overlay-only demo mode. RSS includes shared pages; this fresh-launch sample is not an all-day battery result. See the implementation notes for the method, other window modes, and next performance work.
+The current Electron prototype has a moderate memory footprint. Short packaged-app samples on Apple Silicon measured about **346 MiB summed process RSS / 1.8% of one CPU core** in companion-only demo mode, and **321 MiB / 1.7%** after opening and closing the panel. Background mode uses four processes; opening the panel adds a fifth. RSS includes shared pages; these short samples are not all-day battery results. See the implementation notes for the method and all window modes.
 
 ## Product documentation
 

@@ -36,6 +36,12 @@ export async function listSessions(): Promise<SessionOption[]> {
     project: basename(session.location.directory),
     active: Boolean(active[session.id]),
     source,
+    selection: {
+      transport: 'service',
+      harness: 'opencode',
+      sessionId: session.id,
+      title: (session.title || 'Untitled session').replace(/[\u0000-\u001f]/g, ' ').slice(0, 128),
+    },
   }));
 }
 
@@ -47,11 +53,13 @@ export class OpenCodeConnector {
     this.controller = undefined;
   }
 
-  connect(sessionId: string, publish: (activity: Activity) => void): void {
+  connect(sessionId: string, publish: (activity: Activity) => void, title?: string): void {
     this.stop();
     const controller = new AbortController();
     this.controller = controller;
     const projection = new OpenCodeProjection(sessionId);
+    if (title) projection.activity.sessionTitle = title;
+    projection.activity.label = 'Connecting to the remembered OpenCode session';
     publish(projection.activity);
     void this.run(projection, controller.signal, publish);
   }

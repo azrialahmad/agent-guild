@@ -156,6 +156,8 @@ export function App() {
   const [name, setName] = useState('');
   const actionBusy = useRef(false);
   const overlay = new URLSearchParams(location.search).get('surface') === 'overlay';
+  const integratedTitlebar =
+    isDesktop && new URLSearchParams(location.search).get('titlebar') === 'integrated';
 
   useEffect(() => {
     let received = false;
@@ -212,17 +214,24 @@ export function App() {
   if (!state) return <div className="loading-screen">{notice || 'Opening your guild…'}</div>;
   if (overlay) return <Overlay state={state} />;
   const { profile, activity } = state;
-  const harness = activity.source
-    ? { opencode: 'OpenCode', codex: 'Codex', 'claude-code': 'Claude Code' }[
-        activity.source.harness
-      ]
+  const selectedHarness = activity.source?.harness ?? state.savedConnection?.harness;
+  const harness = selectedHarness
+    ? { opencode: 'OpenCode', codex: 'Codex', 'claude-code': 'Claude Code' }[selectedHarness]
     : 'Coding agent';
+  const connectionLabel = {
+    demo: 'Demo',
+    connecting: 'Connecting',
+    connected: 'Connected',
+    disconnected: 'Disconnected',
+  }[activity.connection];
   const completed = profile.completed.length;
   const cloak = CLOAKS.find((item) => item.id === profile.cloak)!;
   const title = NAV.find((item) => item.id === page)!.label;
 
   return (
-    <div className={`app-shell ${profile.reducedMotion ? 'reduce-motion' : ''}`}>
+    <div
+      className={`app-shell ${integratedTitlebar ? 'integrated-titlebar' : ''} ${profile.reducedMotion ? 'reduce-motion' : ''}`}
+    >
       <div className="main-shell">
         <header className="topbar">
           <div className="brand">
@@ -230,11 +239,18 @@ export function App() {
             <span>agent guild</span>
           </div>
           <div className="topbar-right">
-            <span className="mode-badge" title={activity.source?.label}>
+            <span
+              className="mode-badge"
+              title={`${connectionLabel}${activity.source ? ` · ${activity.source.label}` : ''}`}
+            >
               <span
                 className={`status-dot ${activity.connection === 'connected' ? 'working' : activity.mode === 'demo' ? 'reading' : 'unknown'}`}
               />
-              {activity.mode === 'demo' ? 'Demo' : harness}
+              {activity.mode === 'demo'
+                ? 'Demo'
+                : activity.connection === 'connected'
+                  ? harness
+                  : connectionLabel}
             </span>
             <button
               className={`icon-button ${page === 'activity' ? 'selected' : ''}`}
@@ -341,7 +357,7 @@ export function App() {
                     <small title={activity.error || activity.sessionTitle}>
                       {activity.mode === 'demo'
                         ? 'Demo activity · connect your agent'
-                        : activity.sessionTitle}
+                        : `${connectionLabel} · ${activity.sessionTitle}`}
                     </small>
                   </span>
                   <ChevronRight size={16} />
@@ -449,7 +465,7 @@ export function App() {
                   </span>
                   <h2>{activity.sessionTitle}</h2>
                 </div>
-                <span className="soft-badge">{activity.connection}</span>
+                <span className="soft-badge">{connectionLabel}</span>
               </div>
               <div className="live-status">
                 <span className={`status-dot ${activity.kind}`} />
@@ -525,6 +541,20 @@ export function App() {
               <section className="card settings-card">
                 <h2>Agent connection</h2>
                 <p>Choose your agent’s plugin or hook source for live activity.</p>
+                {activity.mode === 'live' && (
+                  <div className="connection-summary">
+                    <strong>
+                      {connectionLabel} · {harness}
+                    </strong>
+                    <p>{activity.label}</p>
+                    <small>
+                      {state.savedConnection
+                        ? `Remembered: ${state.savedConnection.title}`
+                        : activity.sessionTitle}
+                    </small>
+                    {activity.error && <p>{activity.error}</p>}
+                  </div>
+                )}
                 <button className="button" onClick={refreshSessions} disabled={loading}>
                   <RefreshCw size={16} className={loading ? 'spin' : ''} />
                   {loading ? 'Finding sessions…' : 'Find local sessions'}
@@ -553,7 +583,7 @@ export function App() {
                       .connect(selected)
                       .then(() =>
                         setNotice(
-                          'Following your session. Connection status appears in Agent activity.',
+                          'Connection remembered. Waiting for fresh activity from your source.',
                         ),
                       )
                       .catch((error) => setNotice(String(error)))
@@ -568,13 +598,24 @@ export function App() {
                 >
                   Use demo activity <ArrowRight size={14} />
                 </button>
+                {state.savedConnection && (
+                  <p className="fine-print">Demo clears the remembered connection.</p>
+                )}
                 <details className="disclosure">
                   <summary>Adapter setup</summary>
                   <p className="fine-print">
                     {isDesktop
-                      ? 'Install the adapter from integrations/README.md, run the harness, then refresh. Prefer its plugin/hook entry when a UI uses a private server. Source and last-signal time appear in Agent activity.'
+                      ? 'Enable your harness adapter, run a session, then refresh. Prefer its plugin/hook entry when your UI uses a private server. The selected source reconnects after an app restart when it sends a fresh signal.'
                       : 'Browser preview: install the desktop app for live connections.'}
                   </p>
+                  <button
+                    className="text-button"
+                    onClick={() =>
+                      void bridge.openAdapterGuide().catch((error) => setNotice(String(error)))
+                    }
+                  >
+                    Open adapter setup guide <ArrowRight size={14} />
+                  </button>
                 </details>
               </section>
               <section className="card settings-card">

@@ -14,6 +14,7 @@ function browserBridge(): GuildBridge {
   let state: GuildState = {
     profile: saved ? parseProfile(JSON.parse(saved)) : newProfile(),
     activity: initialActivity(),
+    savedConnection: null,
   };
   let step = 0;
   const listeners = new Set<(state: GuildState) => void>();
@@ -69,6 +70,13 @@ function browserBridge(): GuildBridge {
       download('agent-guild-backup.json', url);
       setTimeout(() => URL.revokeObjectURL(url), 1000);
       return true;
+    },
+    openAdapterGuide: async () => {
+      window.open(
+        'https://github.com/azrialahmad/agent-guild/blob/main/integrations/README.md',
+        '_blank',
+        'noopener,noreferrer',
+      );
     },
   };
 }

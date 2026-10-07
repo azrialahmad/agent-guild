@@ -17,6 +17,11 @@ export interface Usage {
   cache: { read: number; write: number };
 }
 
+export type Harness = 'opencode' | 'codex' | 'claude-code';
+export type ConnectionSelection =
+  | { transport: 'service'; harness: 'opencode'; sessionId: string; title: string }
+  | { transport: 'bridge'; harness: Harness; sessionId: string; sourceId: string; title: string };
+
 export interface Activity {
   mode: 'demo' | 'live';
   connection: 'demo' | 'connected' | 'connecting' | 'disconnected';
@@ -31,7 +36,7 @@ export interface Activity {
   historyNote?: string;
   version?: string;
   source?: {
-    harness: 'opencode' | 'codex' | 'claude-code';
+    harness: Harness;
     transport: 'service' | 'plugin' | 'hook';
     label: string;
     lastSignal: number;
@@ -69,11 +74,13 @@ export interface SessionOption {
   project: string;
   active: boolean;
   source?: string;
+  selection?: ConnectionSelection;
 }
 
 export interface GuildState {
   profile: Profile;
   activity: Activity;
+  savedConnection: ConnectionSelection | null;
 }
 
 export type GameAction =
@@ -101,6 +108,7 @@ export interface GuildBridge {
   moveOverlay(dx: number, dy: number): void;
   saveImage(dataUrl: string): Promise<boolean>;
   backup(): Promise<boolean>;
+  openAdapterGuide(): Promise<void>;
 }
 
 export const WORK_LABELS: Record<WorkKind, string> = {
