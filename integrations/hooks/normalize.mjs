@@ -47,6 +47,7 @@ export function normalize(harness, input) {
     title: `${harness} · ${project}`,
     project,
   };
+  packet.sourceId = packet.producer;
   if (['tool-start', 'tool-end', 'attention'].includes(type)) {
     const name = typeof input.tool_name === 'string' ? input.tool_name.slice(0, 128) : 'tool';
     packet.toolName = name;

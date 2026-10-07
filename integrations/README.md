@@ -6,6 +6,8 @@ The macOS app listens on a user-private Unix socket at `~/Library/Application Su
 
 Open the desktop app first, enable an adapter, then use **Settings → Find local sessions → choose the plugin/hook source → Follow this session**. **Agent activity** shows the source and last received signal. A session appears after its first observed operation, rather than claiming that an installed adapter is already tracking every saved session.
 
+The app starts with the companion and lantern; click either to open the panel. **Settings → Adapter setup → Open adapter setup guide** opens this guide. Following a source remembers its harness, native session ID, and stable source identity in `connection.json`. The panel can be closed without stopping observation. After restarting the desktop, bridge state stays unknown until the matching adapter sends a fresh signal; it does not switch to a different harness/server with the same session ID. Demo clears the remembered selection.
+
 ## OpenCode V2 plugin
 
 Run `npm ci` in this checkout. The repository's `opencode.json` enables the plugin for Agent Guild development. For another project or a global setup, add the absolute path to this checkout's `integrations/opencode` directory to the existing `plugins` array in `opencode.json(c)`:
@@ -19,7 +21,9 @@ Run `npm ci` in this checkout. The repository's `opencode.json` enables the plug
 
 Preserve other plugin/config entries. The plugin runs in the actual server's location runtime, observes model-context and public lifecycle events, and sends a heartbeat snapshot every five seconds. No model request is modified. Load/reload the project's plugins through your OpenCode interface if the running session has not picked up the new configuration; do not restart an unrelated shared daemon to fix a private UI's connection.
 
-The source label includes the producer PID and a location hash, so a private server and shared daemon remain distinct choices. The desktop marks a missing OpenCode heartbeat unknown after 20 seconds, checked every five seconds. Adapter reloads are not session success or turn completion.
+The source label includes the producer PID and a location hash, so a private server and shared daemon remain distinct choices. Packets also include a stable `sourceId`, hashed from executable path and location directory, allowing the remembered source to recover across PID changes without sending full paths. A different executable/location requires reselection. If two live producers match that stable identity, automatic recovery pauses until you choose one explicitly. The desktop marks a missing OpenCode heartbeat unknown after 20 seconds, checked every five seconds. Adapter reloads are not session success or turn completion.
+
+Reload an already-running adapter to pick up the stable identity field after updating this checkout. Older packets remain accepted using their producer as identity; those selections reconnect only while that producer identity is unchanged.
 
 Keep the `integrations` directory structure intact. The local OpenCode package uses its sibling `bridge` helper and the checkout's pinned `@opencode/plugin` dependency. Standalone npm publishing and a one-click installer are later packaging work.
 
@@ -86,11 +90,13 @@ Include **UserPromptSubmit, PostToolUse, PermissionRequest, Stop, Interrupt, Ses
 
 Use `AGENT_GUILD_SOCKET` consistently in the desktop and harness environment for a custom socket. OpenCode also accepts `{ "package": "/path/to/integrations/opencode", "options": { "socket": "/custom/activity.sock" } }`. Only local lifecycle metadata crosses the socket; runtime authentication remains within the coding harness.
 
-For a development launch that should follow a specific native session ID as soon as its adapter reports, use `AGENT_GUILD_SESSION=ses_example npm run start`. This waits for a real bridge signal, selects its source once, and is canceled by a manual source/demo selection. Ordinary launches still start in demo mode.
+For a development launch that should follow a specific native session ID as soon as its adapter reports, use `AGENT_GUILD_SESSION=ses_example npm run start`. This overrides the remembered selection while waiting, selects and remembers a source after its real signal arrives, and is canceled by a manual source/demo selection. Ordinary launches restore the saved source, or use demo when no selection is saved. The shared-service selection rediscovers and authenticates its local OpenCode endpoint on restart; no endpoint credentials are saved.
 
 ## Protocol and bounds
 
 The protocol is `BridgePacket` in `src/shared/bridge-activity.ts`: schema version 1, newline-delimited JSON, one packet per connection. The main process enforces an 8 KiB packet limit, 32 simultaneous connections, at most 50 tracked source/session records, bounded tool/pending IDs, deduplication, and 80 recent events per record. Invalid/unknown versions and unexpected fields are rejected. Received-time freshness is separate from the sender's event timestamp.
+
+`sourceId` is optional for backward compatibility. OpenCode supplies a stable executable/location hash; Codex/Claude hooks use their existing session/location hash. Per-producer records stay separate so overlapping runtimes are visible. An explicit `session-end` disconnects the source and sets activity unknown; a turn end does not establish task success.
 
 ## Official references
 

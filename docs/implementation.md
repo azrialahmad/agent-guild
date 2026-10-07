@@ -1,12 +1,13 @@
 # Desktop prototype — implementation and verification
 
-Repository: [azrialahmad/agent-guild](https://github.com/azrialahmad/agent-guild). Initial implementation branch: `feat/desktop-mvp`, targeting `main` through a pull request. Commits follow Conventional Commits.
+Repository: [azrialahmad/agent-guild](https://github.com/azrialahmad/agent-guild). The initial prototype merged in PR #1. Background/reconnect work uses `feat/background-and-reconnect`, targeting `main` through a pull request. Commits follow Conventional Commits.
 
 ## Implemented scope
 
 This build implements the first live macOS slice of the Docmost PRD, with a small set of sharing features.
 
 - Electron host; React + TypeScript guild panel; original Canvas pixel art.
+- Startup creates only the companion and menu-bar lantern. The guild panel is created by an explicit open action and destroyed on close, releasing its renderer. Game state and tracking live in the main process.
 - Compact 520 × 620 utility panel (minimum 420 × 500), replacing the 1080 × 800 dashboard. Three primary tabs, header activity/settings/share shortcuts, and a single companion/status view.
 - Adventure history and signal explanations use native expandable disclosures. Secondary pages scroll inside the panel; navigation remains available. The default companion screen fits without scrolling.
 - Transparent 260 × 190 desktop-edge overlay, non-focusable, floating above regular windows.
@@ -16,6 +17,10 @@ This build implements the first live macOS slice of the Docmost PRD, with a smal
 - OpenCode V2 local-service discovery and authentication through the official client, pinned to 2.0.19.
 - Executing-server OpenCode plugin plus experimental Codex/Claude Code command-hook bundles. A user-private Unix socket carries sanitized, bounded lifecycle packets to the existing Electron main process.
 - Source identity and last received signal are visible; source/session combinations remain distinct even when two OpenCode servers share saved conversations.
+- A separate atomic, versioned `connection.json` remembers harness/transport, native session ID/title, and a stable hashed bridge source identity. It stores no runtime credentials or event history and does not alter the game profile.
+- Ordinary restart waits for a fresh matching bridge signal, or rediscovers/retries the saved shared-service session. Unknown is retained while connecting, disconnected, or ambiguous; the app does not silently switch sources or revert a saved selection to demo. Explicit demo selection clears the preference.
+- OpenCode source identity survives PID changes using an executable/location hash; separate overlapping producers remain visible. Two fresh producers with the same stable identity require explicit selection. Legacy packets fall back to their producer identity; reloading the updated adapter enables PID-independent recovery.
+- Settings shows remembered connection/status and opens the adapter guide through a fixed native external-link method.
 - One selected root session. Multiple sessions can be selected individually; simultaneous multi-character parties are not implemented.
 - Live tool/execution, permission, form, and session-shell events; concurrent operations are retained.
 - Reconnect with bounded backoff, snapshot reconciliation, live-only recent event inspector, and explicit disconnected state. Missed event history is not invented.
@@ -48,7 +53,7 @@ Credentials remain in the main process. The app does not issue model prompts or 
 
 Development environment: macOS on Apple Silicon, OpenCode 2.0.19, Node.js 22 portable toolchain. The computer's global Node installation was not replaced.
 
-Results: `npm run check` passed with 15 domain tests. The 4 native Electron tests passed against the source build and again against the packaged Apple Silicon `.app`. Static browser-demo production compilation also passed. The disposable direct-connector check passed against OpenCode 2.0.19; the real-plugin bridge check passed against both 2.0.19 and OpenChamber's 2.0.15 server.
+Results: `npm run check` passed with 16 domain tests. The 6 native Electron cases passed against the source build and the packaged Apple Silicon `.app` (the source navigation case was rerun after correcting an automation-helper race). Static browser-demo production compilation also passed. The disposable direct-connector check previously passed against OpenCode 2.0.19; the real-plugin bridge check previously passed against both 2.0.19 and OpenChamber's 2.0.15 server. The updated plugin and packaged plugin/service restart recovery were checked against the real 2.0.19 service.
 
 ### Automated domain checks
 
@@ -65,10 +70,11 @@ Results: `npm run check` passed with 15 domain tests. The 4 native Electron test
 - Shared-database activity newer than the shared server's idle marker is unknown until its execution source is confirmed.
 - Actual command-hook stdin → socket delivery is sanitized; an absent companion produces no output/decision and exits zero.
 - Concurrent bridge tools/attention, duplicate suppression, stale-source recovery, strict packet parsing, and live socket ownership are checked.
+- Connection preference serialization rejects extra/private fields and invalid identities, preserves corrupt files, and can be explicitly replaced or cleared. Explicit harness session end disconnects rather than implying a successful outcome.
 
 ### Native Electron checks
 
-- Start and play a real rendered UI, reload mid-adventure, complete it, and equip an unlocked cloak.
+- Start with no panel, create one on demand, play, close mid-adventure, and reopen to complete it and equip an unlocked cloak. The original panel renderer PID disappears from Electron's process metrics.
 - Generate an actual PNG postcard preview; unavailable token option stays disabled.
 - Escape dismisses the native HTML dialog.
 - Overlay is always-on-top and non-focusable.
@@ -79,14 +85,29 @@ Results: `npm run check` passed with 15 domain tests. The 4 native Electron test
 - A pointer-driven grip drag changes native bounds and persists the new position to the profile file.
 - A selected private-server plugin source drives editing/attention/turn-end states and exposes source metadata. Observed tools and turn end leave XP and rewards unchanged.
 - Compact native window dimensions and the no-scroll default companion view are asserted. Adventure history expands on demand; adventures, wardrobe unlocks, and postcard export still work at the smaller size.
+- Restart the app with an isolated persisted bridge choice: wrong harness/source/session signals are ignored, a changed producer PID with the same stable identity reconnects, overlapping producers stay unknown until explicitly chosen, and source end can recover to the remaining matching runtime.
+- Tracking continues with the panel destroyed. Rewards remain unchanged throughout recovery. Choosing demo clears disk preferences and remains demo on the next restart. A missing saved service session stays disconnected/unknown while preserving its preference for retry.
 
 These checks exercise an actual Electron application rather than browser-only mocks. The source and packaged build are checked separately before delivery.
 
-The compact layout was also inspected in the synthetic browser demo at 375-pixel and desktop widths, with reduced motion enabled. Primary pages have no horizontal overflow. Browser/demo validation is separate from native overlay behavior.
+The compact layout was also inspected in the synthetic browser demo at 375/1440-pixel widths, with reduced motion enabled. All five pages have no horizontal overflow, the adapter guide opens, and adventure progress survives reload. Browser/demo validation is separate from native overlay behavior.
 
 ### Short resource baseline
 
-Measured on Apple Silicon macOS on 2026-10-06 using the packaged Electron 40.10.6 application, before adding the activity bridge. `npm run measure:desktop` launches a fresh, uninstrumented app with a disposable profile for each window mode, waits four seconds, and records ten approximately one-second samples. `ps` supplies cumulative CPU time and RSS for the main process and its descendants. CPU percentages use the convention **100% = one fully occupied core**, rather than Electron's normalized share of all logical cores.
+Measured on Apple Silicon macOS using the packaged Electron 40.10.6 application. `npm run measure:desktop` launches a fresh, uninstrumented app with a disposable profile for each window mode, waits four seconds, and records ten approximately one-second samples. It verifies whether windows exist, not just whether they are visible. `ps` supplies cumulative CPU time and RSS for the main process and its descendants. CPU percentages use the convention **100% = one fully occupied core**, rather than Electron's normalized share of all logical cores.
+
+Current bridge + on-demand-panel build, measured 2026-10-07:
+
+| Demo window mode              | Mean CPU (one-core %) | Mean summed RSS | Processes |
+| ----------------------------- | --------------------: | --------------: | --------: |
+| Panel + companion             |                 2.03% |         405 MiB |         5 |
+| Companion only, no panel made |                 1.83% |         346 MiB |         4 |
+| Panel opened, then destroyed  |                 1.74% |         321 MiB |         4 |
+| Tray only, no panel made      |                 0.58% |         303 MiB |         4 |
+
+The panel-closed scenario opens the panel and closes it after one second, before sampling. Lower RSS than the never-opened scenario is a short residency observation, not evidence that opening a panel improves memory. The reliable structural change is one fewer renderer/process when the panel is absent. Each scenario is a fresh app launch, not an all-day trend.
+
+Historical pre-bridge build, measured 2026-10-06 (both windows existed in every mode, with hidden panel renderers retained):
 
 | Demo window mode  | Mean CPU (one-core %) | Mean summed RSS | Processes |
 | ----------------- | --------------------: | --------------: | --------: |
@@ -104,7 +125,7 @@ AGENT_GUILD_EXECUTABLE="$PWD/release/mac-arm64/Agent Guild.app/Contents/MacOS/Ag
 
 Avoidable work removed: the static landscape has no animation clock; the companion paints directly without a React state update per frame, stops its clock while hidden or reduced-motion is active, and caches alpha pixels after painting instead of reading the canvas on each mouse move. Native windows use a genuinely hidden initial visibility state. Drag position saves are debounced for 200 ms and flushed on normal quit.
 
-The current build is CPU-light in this short demo sample but is not yet a low-memory utility. Next performance work should create the guild panel on demand, consider releasing its renderer after closing, and measure memory trends plus battery use during a real workday before expanding the desktop surface.
+The current build removes the unnecessary panel renderer and remains CPU-light in the short demo sample. Electron still has a moderate memory footprint. Next performance work should measure sustained live-session memory trends and battery use during a real workday.
 
 ### Real OpenCode checks
 
@@ -114,6 +135,7 @@ The current build is CPU-light in this short demo sample but is not yet a low-me
 - The script cleans up only its own session and temporary directory.
 - `verify:plugin` loads the actual plugin in an isolated project on both 2.0.19 and 2.0.15, then observes real shell start/end through the Unix socket and a return to idle. It sends no model prompt.
 - The actual conversation was then observed through the private-server plugin: working/reading/tool transitions arrived. The rebuilt packaged app followed this exact session, displayed the plugin source, and showed the currently executing command. This verifies ongoing real model-loop activity; full prompt-to-stop lifecycle coverage across each harness remains a separate runtime check.
+- Updated packaged-app recovery check on 2.0.19: create a disposable project with the real adapter, observe shell events, select its stable source, restart the desktop, and receive the plugin's next heartbeat without a panel. Further real shell signals arrive. Select the same real session through the direct connector, restart again, and restore its authenticated service connection. XP stays zero. Only the check's own project/session/profile are removed.
 
 ### Tracking incident and adapter decision
 
@@ -123,7 +145,7 @@ The plugin now reports from the executing location runtime, while the direct con
 
 Codex and Claude adapters are local plugin/hook bundles that forward allowlisted lifecycle metadata and return no decisions. Their real stdin/command/socket behavior and desktop state mapping are tested; **their CLIs were not installed here, so native plugin loading and full agent-loop coverage remain unverified**. Hook-only sources expire after five quiet minutes and do not expose token totals. A long silent model request can therefore show unknown. No transcript scraping or task-success inference is used.
 
-Setup and protocol bounds are in [`integrations/README.md`](../integrations/README.md). The optional `AGENT_GUILD_SESSION` launch setting selects a source only after it emits the requested session ID; ordinary launches remain demo-first. User adventures, unlocks, rewards, and profile serialization are independent of all bridge records.
+Setup and protocol bounds are in [`integrations/README.md`](../integrations/README.md). The optional `AGENT_GUILD_SESSION` launch setting overrides the saved selection while waiting and remembers a source only after it emits the requested session ID. Ordinary launches restore the saved source; first launch or explicit demo selection uses demo. User adventures, unlocks, rewards, and profile serialization are independent of all bridge records.
 
 ## Native behavior requiring manual validation
 
@@ -146,7 +168,7 @@ Setup and protocol bounds are in [`integrations/README.md`](../integrations/READ
 
 The three routes share one memory mechanic. This is enough to test the loop, not evidence that the content will retain users for weeks. Petting is expressive and does not award grindable XP. Passive XP is currently zero; progression comes from actively completing adventures.
 
-The selected session is not restored automatically on ordinary app restart; the app begins in demo mode. A development launch can request a session ID and waits for its real adapter signal. A later onboarding/reconnect preference can add persisted selection with explicit connection state.
+Selection recovery is limited to the remembered native session and source, rather than choosing a newer conversation automatically. Hook-only sources must send another lifecycle event after desktop restart. Moving a project or executable can change its stable hash and require reselection. Adapters loaded before this update use legacy producer identity until reloaded. A one-click adapter installer and standalone adapter publishing remain future work.
 
 The event inspector keeps the most recent 80 relevant events from this connection in memory. Direct-service event detail is capped at 6,000 characters; bridge events contain only the allowlisted lifecycle metadata from bounded packets. It is not a complete session debugger. Direct reconnect snapshots inspect the most recent 30 messages; this is a bounded recovery window, not a full historical replay.
 

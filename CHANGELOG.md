@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- Companion-first startup; create the guild panel on demand and release its renderer when closed while preserving saved adventures and live tracking.
+- Persist the selected harness/session/source separately from game progress, restore it after restart, and show connecting/disconnected/unknown states explicitly.
+- Stable hashed OpenCode source IDs survive producer PID changes; conflicting live identities require explicit selection. Demo clears the remembered connection.
+- Open the adapter setup guide from Settings through a fixed, narrow native method.
+- Verify panel renderer release, adventure resume, bridge/service restart recovery, and updated normal-launch macOS resources.
+
 ## 0.1.0 — Desktop prototype
 
 - Transparent macOS companion and a cozy guild panel.

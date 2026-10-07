@@ -881,6 +881,27 @@ p {
 .settings-card > .disclosure {
   margin-top: 4px;
 }
+.connection-summary {
+  padding: 9px 10px;
+  margin-bottom: 10px;
+  background: #f0f2e9;
+  border-radius: 6px;
+  overflow-wrap: anywhere;
+}
+.connection-summary strong {
+  font-size: 11px;
+  font-weight: 500;
+}
+.connection-summary p {
+  font-size: 11px;
+  margin-top: 4px;
+}
+.connection-summary small {
+  display: block;
+  font-size: 10px;
+  color: var(--muted);
+  margin-top: 4px;
+}
 .field-label {
   display: block;
   color: var(--muted);
