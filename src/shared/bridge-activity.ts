@@ -1,5 +1,5 @@
 import { addEvent, initialActivity, toolKind } from './activity';
-import type { Activity, SessionOption } from './types';
+import type { Activity, ConnectionSelection, SessionOption } from './types';
 
 export const BRIDGE_TYPES = [
   'session',
@@ -16,6 +16,7 @@ export interface BridgePacket {
   schema: 1;
   id: string;
   producer: string;
+  sourceId?: string;
   harness: 'opencode' | 'codex' | 'claude-code';
   sessionId: string;
   type: (typeof BRIDGE_TYPES)[number];
@@ -33,6 +34,7 @@ const fields = new Set([
   'schema',
   'id',
   'producer',
+  'sourceId',
   'harness',
   'sessionId',
   'type',
@@ -69,7 +71,7 @@ export function parseBridgePacket(value: unknown, now = Date.now()): BridgePacke
     Math.abs(now - packet.time) > 300_000
   )
     return;
-  for (const key of ['title', 'project', 'toolId', 'toolName'])
+  for (const key of ['title', 'project', 'toolId', 'toolName', 'sourceId'])
     if (packet[key] !== undefined && !short(packet[key])) return;
   if (packet.running !== undefined && typeof packet.running !== 'boolean') return;
   if (packet.type === 'snapshot' && typeof packet.running !== 'boolean') return;
@@ -116,6 +118,7 @@ export class BridgeProjection {
     readonly harness: BridgePacket['harness'],
     readonly producer: string,
     readonly sessionId: string,
+    readonly sourceId = producer,
   ) {
     this.activity = {
       ...initialActivity('live'),
@@ -199,7 +202,12 @@ export class BridgeProjection {
       label = 'Your attention is needed';
     }
     if (packet.type === 'turn-end' && !this.tools.size) label = 'Turn ended · outcome unverified';
-    if (packet.type === 'session-end') label = 'Harness session ended';
+    if (packet.type === 'session-end') {
+      kind = 'unknown';
+      label = 'Harness session ended · state unknown';
+      this.tools.clear();
+      this.activity = { ...this.activity, connection: 'disconnected' };
+    }
     this.activity = { ...this.activity, kind, label, activeTools: this.tools.size };
     if (packet.type !== 'snapshot' && packet.type !== 'session')
       this.activity = addEvent(this.activity, {
@@ -235,6 +243,17 @@ export class BridgeProjection {
         this.activity.connection === 'connected' &&
         !['idle', 'unknown'].includes(this.activity.kind),
       source: this.activity.source?.label,
+      selection: this.selection(),
+    };
+  }
+
+  selection(): Extract<ConnectionSelection, { transport: 'bridge' }> {
+    return {
+      transport: 'bridge',
+      harness: this.harness,
+      sessionId: this.sessionId,
+      sourceId: this.sourceId,
+      title: this.activity.sessionTitle,
     };
   }
 }

@@ -3,7 +3,7 @@ import { chmodSync, existsSync, lstatSync, mkdirSync, unlinkSync } from 'node:fs
 import { dirname } from 'node:path';
 import { createHash } from 'node:crypto';
 import { BridgeProjection, parseBridgePacket } from '../shared/bridge-activity';
-import type { Activity, SessionOption } from '../shared/types';
+import type { Activity, ConnectionSelection, SessionOption } from '../shared/types';
 
 export class ActivityBridge {
   private server?: Server;
@@ -16,7 +16,10 @@ export class ActivityBridge {
 
   constructor(
     readonly path: string,
-    private readonly detected?: (key: string, sessionId: string) => void,
+    private readonly detected?: (
+      key: string,
+      selection: Extract<ConnectionSelection, { transport: 'bridge' }>,
+    ) => void,
   ) {}
 
   async start(): Promise<void> {
@@ -64,7 +67,12 @@ export class ActivityBridge {
         try {
           const packet = parseBridgePacket(JSON.parse(buffer.slice(0, end)));
           if (packet) {
-            const key = `bridge:${createHash('sha256').update(`${packet.harness}:${packet.producer}:${packet.sessionId}`).digest('hex').slice(0, 24)}`;
+            const key = `bridge:${createHash('sha256')
+              .update(
+                `${packet.harness}:${packet.sourceId ?? packet.producer}:${packet.producer}:${packet.sessionId}`,
+              )
+              .digest('hex')
+              .slice(0, 24)}`;
             let record = this.records.get(key);
             if (!record) {
               if (this.records.size >= 50) {
@@ -73,11 +81,17 @@ export class ActivityBridge {
                   .sort((a, b) => a.lastSignal - b.lastSignal)[0];
                 if (oldest) this.records.delete(oldest.key);
               }
-              record = new BridgeProjection(key, packet.harness, packet.producer, packet.sessionId);
+              record = new BridgeProjection(
+                key,
+                packet.harness,
+                packet.producer,
+                packet.sessionId,
+                packet.sourceId ?? packet.producer,
+              );
               this.records.set(key, record);
             }
             if (record.accept(packet)) {
-              this.detected?.(key, packet.sessionId);
+              this.detected?.(key, record.selection());
               if (key === this.selected) this.publish?.(record.activity);
             }
           }
@@ -107,7 +121,10 @@ export class ActivityBridge {
   sessions(): SessionOption[] {
     return [...this.records.values()]
       .sort((a, b) => b.lastSignal - a.lastSignal)
-      .map((record) => record.option());
+      .map((record) => {
+        if (record.expire() && record.key === this.selected) this.publish?.(record.activity);
+        return record.option();
+      });
   }
 
   follow(key: string, publish: (activity: Activity) => void): void {
@@ -117,6 +134,32 @@ export class ActivityBridge {
     this.publish = publish;
     record.expire();
     publish(record.activity);
+  }
+
+  selection(key: string): Extract<ConnectionSelection, { transport: 'bridge' }> {
+    const record = this.records.get(key);
+    if (!record) throw new Error('That harness has not sent a session signal yet.');
+    return record.selection();
+  }
+
+  matches(selection: Extract<ConnectionSelection, { transport: 'bridge' }>): string[] {
+    return [...this.records.values()]
+      .filter((record) => {
+        if (record.expire() && record.key === this.selected) this.publish?.(record.activity);
+        return (
+          record.harness === selection.harness &&
+          record.sessionId === selection.sessionId &&
+          record.sourceId === selection.sourceId &&
+          record.activity.connection === 'connected'
+        );
+      })
+      .map((record) => record.key);
+  }
+
+  isConnected(key: string): boolean {
+    const record = this.records.get(key);
+    if (record?.expire() && record.key === this.selected) this.publish?.(record.activity);
+    return record?.activity.connection === 'connected';
   }
 
   stopFollowing(): void {

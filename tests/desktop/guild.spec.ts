@@ -1,10 +1,37 @@
 import { _electron as electron, expect, test, type ElectronApplication } from '@playwright/test';
 import { join } from 'node:path';
-import { readFile } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { send } from '../../integrations/bridge/send.mjs';
 import type { BridgePacket } from '../../src/shared/bridge-activity';
+import type { ConnectionSelection } from '../../src/shared/types';
 
-async function panelWindow(app: ElectronApplication) {
+async function launchGuild(overrides: Record<string, string> = {}) {
+  const env = { ...process.env };
+  delete env.AGENT_GUILD_SESSION;
+  delete env.AGENT_GUILD_SOCKET;
+  delete env.AGENT_GUILD_MEASURE_SURFACE;
+  return electron.launch({
+    executablePath: process.env.AGENT_GUILD_EXECUTABLE,
+    args: process.env.AGENT_GUILD_EXECUTABLE ? [] : ['.'],
+    env: { ...env, AGENT_GUILD_SMOKE: '1', ...overrides },
+  });
+}
+
+async function overlayWindow(app: ElectronApplication) {
+  await expect
+    .poll(() => app.windows().some((window) => window.url().includes('surface=overlay')))
+    .toBe(true);
+  const overlay = app.windows().find((window) => window.url().includes('surface=overlay'))!;
+  await expect(overlay.getByRole('button', { name: 'Open your guild' })).toBeVisible();
+  return overlay;
+}
+
+async function panelWindow(app: ElectronApplication, page: 'guild' | 'adventures' = 'guild') {
+  if (!app.windows().some((window) => window.url().includes('surface=panel'))) {
+    const overlay = await overlayWindow(app);
+    await overlay.evaluate((page) => window.guild!.openPanel(page), page);
+  }
   await expect
     .poll(() => app.windows().some((window) => window.url().includes('surface=panel')))
     .toBe(true);
@@ -12,11 +39,7 @@ async function panelWindow(app: ElectronApplication) {
 }
 
 test('desktop follows the executing plugin source and never rewards observed tool activity', async () => {
-  const app = await electron.launch({
-    executablePath: process.env.AGENT_GUILD_EXECUTABLE,
-    args: process.env.AGENT_GUILD_EXECUTABLE ? [] : ['.'],
-    env: { ...process.env, AGENT_GUILD_SMOKE: '1', AGENT_GUILD_SESSION: 'ses_fixture' },
-  });
+  const app = await launchGuild({ AGENT_GUILD_SESSION: 'ses_fixture' });
   try {
     const panel = await panelWindow(app);
     await expect(
@@ -75,20 +98,16 @@ test('desktop follows the executing plugin source and never rewards observed too
 });
 
 test('overlay controls open the requested page and support an actual pointer drag', async () => {
-  const app = await electron.launch({
-    executablePath: process.env.AGENT_GUILD_EXECUTABLE,
-    args: process.env.AGENT_GUILD_EXECUTABLE ? [] : ['.'],
-    env: { ...process.env, AGENT_GUILD_SMOKE: '1' },
-  });
+  const app = await launchGuild();
   try {
-    const panel = await panelWindow(app);
-    await expect(
-      panel.getByRole('heading', { name: 'Little Wanderer', exact: true }),
-    ).toBeVisible();
-    await expect
-      .poll(() => app.windows().some((window) => window.url().includes('surface=overlay')))
-      .toBe(true);
-    const overlay = app.windows().find((window) => window.url().includes('surface=overlay'))!;
+    const overlay = await overlayWindow(app);
+    expect(app.windows()).toHaveLength(1);
+    await overlay
+      .getByRole('button', { name: 'Open your guild' })
+      .hover({ position: { x: 110, y: 65 } });
+    await overlay.getByRole('button', { name: 'Play an adventure' }).click();
+    const panel = await panelWindow(app, 'adventures');
+    await expect(panel.getByRole('heading', { name: 'Adventures', exact: true })).toBeVisible();
     await app.evaluate(({ BrowserWindow }) =>
       BrowserWindow.getAllWindows()
         .find((window) => window.webContents.getURL().includes('surface=panel'))!
@@ -178,13 +197,9 @@ test('overlay controls open the requested page and support an actual pointer dra
 });
 
 test('desktop adventure survives reload, unlocks cosmetics, and produces a real postcard', async () => {
-  const app = await electron.launch({
-    executablePath: process.env.AGENT_GUILD_EXECUTABLE,
-    args: process.env.AGENT_GUILD_EXECUTABLE ? [] : ['.'],
-    env: { ...process.env, AGENT_GUILD_SMOKE: '1' },
-  });
+  const app = await launchGuild();
   try {
-    const panel = await panelWindow(app);
+    let panel = await panelWindow(app);
     await expect(
       panel.getByRole('heading', { name: 'Little Wanderer', exact: true }),
     ).toBeVisible();
@@ -207,8 +222,32 @@ test('desktop adventure survives reload, unlocks cosmetics, and produces a real 
     await panel.getByRole('button', { name: /The lantern meadow/ }).click();
     await panel.getByRole('button', { name: 'I remember the trail' }).click();
     await panel.getByRole('button', { name: 'leaf', exact: true }).click();
-    await panel.reload();
-    await panel.getByRole('button', { name: 'Adventures', exact: true }).click();
+    const rendererPid = await app.evaluate(({ BrowserWindow }) =>
+      BrowserWindow.getAllWindows()
+        .find((window) => window.webContents.getURL().includes('surface=panel'))!
+        .webContents.getOSProcessId(),
+    );
+    await app.evaluate(({ BrowserWindow }) =>
+      BrowserWindow.getAllWindows()
+        .find((window) => window.webContents.getURL().includes('surface=panel'))!
+        .close(),
+    );
+    await expect.poll(() => app.windows().length).toBe(1);
+    await expect
+      .poll(() =>
+        app.evaluate(
+          ({ app }, pid) => app.getAppMetrics().some((metric) => metric.pid === pid),
+          rendererPid,
+        ),
+      )
+      .toBe(false);
+    const overlay = await overlayWindow(app);
+    await overlay
+      .getByRole('button', { name: 'Open your guild' })
+      .hover({ position: { x: 110, y: 65 } });
+    await overlay.getByRole('button', { name: 'Play an adventure' }).click();
+    panel = await panelWindow(app, 'adventures');
+    await expect(panel.getByRole('heading', { name: 'Adventures', exact: true })).toBeVisible();
     await expect(panel.getByLabel('1 of 3 signs followed')).toBeVisible();
     await panel.getByRole('button', { name: 'star', exact: true }).click();
     await panel.getByRole('button', { name: 'moon', exact: true }).click();
@@ -241,12 +280,177 @@ test('desktop adventure survives reload, unlocks cosmetics, and produces a real 
   }
 });
 
+test('remembered bridge source recovers after restart and runtime changes without following a conflicting source', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'guild-reconnect-'));
+  let app: ElectronApplication | undefined;
+  const emit = (producer: string, extra: Partial<BridgePacket> = {}) =>
+    send(
+      {
+        schema: 1,
+        id: crypto.randomUUID(),
+        producer,
+        sourceId: 'private-runtime',
+        harness: 'opencode',
+        sessionId: 'ses_remembered',
+        title: 'Remembered fixture',
+        project: 'fixture',
+        time: Date.now(),
+        type: 'turn-start',
+        ...extra,
+      },
+      join(directory, 'activity.sock'),
+    );
+  try {
+    app = await launchGuild({ AGENT_GUILD_DATA_DIR: directory });
+    let overlay = await overlayWindow(app);
+    expect(app.windows()).toHaveLength(1);
+    expect(await emit('runtime-1')).toBe(true);
+    let panel = await panelWindow(app);
+    await panel.getByRole('button', { name: 'Settings', exact: true }).click();
+    await panel.getByRole('button', { name: 'Find local sessions' }).click();
+    await panel
+      .getByLabel('Choose a session')
+      .selectOption({ label: '● Remembered fixture · fixture · opencode plugin · runtime-1' });
+    await panel.getByRole('button', { name: 'Follow this session' }).click();
+    await expect(panel.getByText('Remembered: Remembered fixture')).toBeVisible();
+    const saved = JSON.parse(await readFile(join(directory, 'connection.json'), 'utf8'));
+    expect(saved).toEqual({
+      schema: 1,
+      selection: {
+        transport: 'bridge',
+        harness: 'opencode',
+        sessionId: 'ses_remembered',
+        sourceId: 'private-runtime',
+        title: 'Remembered fixture',
+      },
+    });
+    await app.evaluate(({ BrowserWindow }) =>
+      BrowserWindow.getAllWindows()
+        .find((window) => window.webContents.getURL().includes('surface=panel'))!
+        .close(),
+    );
+    await expect.poll(() => app!.windows().length).toBe(1);
+    await emit('runtime-1', { type: 'tool-start', toolId: 'read-1', toolName: 'read' });
+    await expect
+      .poll(() => overlay.evaluate(async () => (await window.guild!.state()).activity.kind))
+      .toBe('reading');
+    await app.close();
+    app = undefined;
+
+    app = await launchGuild({ AGENT_GUILD_DATA_DIR: directory });
+    overlay = await overlayWindow(app);
+    expect(app.windows()).toHaveLength(1);
+    expect((await overlay.evaluate(() => window.guild!.state())).activity).toMatchObject({
+      mode: 'live',
+      connection: 'connecting',
+      kind: 'unknown',
+      sessionId: 'ses_remembered',
+      events: [],
+    });
+    await emit('other-harness', { harness: 'codex' });
+    await emit('shared-service', { sourceId: 'shared-runtime' });
+    await emit('other-session', { sessionId: 'ses_another' });
+    expect((await overlay.evaluate(() => window.guild!.state())).activity.connection).toBe(
+      'connecting',
+    );
+    await emit('runtime-2', {
+      type: 'snapshot',
+      running: true,
+      tools: [{ id: 'patch-1', name: 'patch' }],
+    });
+    await expect
+      .poll(() => overlay.evaluate(async () => (await window.guild!.state()).activity.kind))
+      .toBe('editing');
+    expect((await overlay.evaluate(() => window.guild!.state())).activity.source?.label).toContain(
+      'runtime-2',
+    );
+
+    // Identical stable identities with two live producers require a fresh explicit choice.
+    await emit('runtime-3');
+    expect((await overlay.evaluate(() => window.guild!.state())).activity).toMatchObject({
+      connection: 'disconnected',
+      kind: 'unknown',
+      label: 'Multiple matching runtimes · choose a source in Settings',
+    });
+    panel = await panelWindow(app);
+    await panel.getByRole('button', { name: 'Settings', exact: true }).click();
+    await panel.getByRole('button', { name: 'Find local sessions' }).click();
+    await panel
+      .getByLabel('Choose a session')
+      .selectOption({ label: '● Remembered fixture · fixture · opencode plugin · runtime-2' });
+    await panel.getByRole('button', { name: 'Follow this session' }).click();
+    await emit('runtime-3', { type: 'tool-start', toolId: 'shell-3', toolName: 'shell' });
+    expect((await overlay.evaluate(() => window.guild!.state())).activity.source?.label).toContain(
+      'runtime-2',
+    );
+    await emit('runtime-2', { type: 'session-end' });
+    await expect
+      .poll(() =>
+        overlay.evaluate(async () => (await window.guild!.state()).activity.source?.label),
+      )
+      .toContain('runtime-3');
+    const state = await overlay.evaluate(() => window.guild!.state());
+    expect(state.activity).toMatchObject({ connection: 'connected', kind: 'command' });
+    expect(state.profile).toMatchObject({ xp: 0, completed: [], adventure: null });
+    await panel.getByRole('button', { name: 'Use demo activity' }).click();
+    await expect
+      .poll(() => overlay.evaluate(async () => (await window.guild!.state()).activity.mode))
+      .toBe('demo');
+    expect(JSON.parse(await readFile(join(directory, 'connection.json'), 'utf8'))).toEqual({
+      schema: 1,
+      selection: null,
+    });
+    await emit('runtime-3');
+    expect((await overlay.evaluate(() => window.guild!.state())).activity.mode).toBe('demo');
+    await app.close();
+    app = undefined;
+    app = await launchGuild({ AGENT_GUILD_DATA_DIR: directory });
+    overlay = await overlayWindow(app);
+    expect((await overlay.evaluate(() => window.guild!.state())).activity.mode).toBe('demo');
+  } finally {
+    if (app) await app.close();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('a missing remembered service session stays disconnected and retains its preference for retry', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'guild-service-'));
+  const selection: ConnectionSelection = {
+    transport: 'service',
+    harness: 'opencode',
+    sessionId: 'ses_nonexistent_guild_fixture',
+    title: 'Unavailable saved session',
+  };
+  const path = join(directory, 'connection.json');
+  await writeFile(path, JSON.stringify({ schema: 1, selection }));
+  const app = await launchGuild({ AGENT_GUILD_DATA_DIR: directory });
+  try {
+    const overlay = await overlayWindow(app);
+    await expect
+      .poll(() => overlay.evaluate(async () => (await window.guild!.state()).activity.connection), {
+        timeout: 20000,
+      })
+      .toBe('disconnected');
+    const state = await overlay.evaluate(() => window.guild!.state());
+    expect(state.activity).toMatchObject({
+      mode: 'live',
+      kind: 'unknown',
+      sessionId: selection.sessionId,
+    });
+    expect(state.savedConnection).toEqual(selection);
+    expect(JSON.parse(await readFile(path, 'utf8')).selection).toEqual(selection);
+    const panel = await panelWindow(app);
+    await panel.getByRole('button', { name: 'Settings', exact: true }).click();
+    await expect(panel.getByText('Disconnected · OpenCode')).toBeVisible();
+    await expect(panel.getByText('Remembered: Unavailable saved session')).toBeVisible();
+  } finally {
+    await app.close();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
 test('native overlay is transparent, unfocusable, movable, and can be hidden and restored', async () => {
-  const app = await electron.launch({
-    executablePath: process.env.AGENT_GUILD_EXECUTABLE,
-    args: process.env.AGENT_GUILD_EXECUTABLE ? [] : ['.'],
-    env: { ...process.env, AGENT_GUILD_SMOKE: '1' },
-  });
+  const app = await launchGuild();
   try {
     const panel = await panelWindow(app);
     await expect(

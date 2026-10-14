@@ -51,11 +51,19 @@ console.log(
   }),
 );
 
-for (const scenario of ['panel-and-overlay', 'overlay-only', 'tray-only'] as const) {
+for (const scenario of [
+  'panel-and-overlay',
+  'overlay-only',
+  'panel-closed',
+  'tray-only',
+] as const) {
   const dataDirectory = await mkdtemp(join(tmpdir(), 'agent-guild-measure-'));
+  const env = { ...process.env };
+  delete env.AGENT_GUILD_SESSION;
+  delete env.AGENT_GUILD_SOCKET;
   const child = spawn(executable, process.env.AGENT_GUILD_EXECUTABLE ? [] : ['.'], {
     env: {
-      ...process.env,
+      ...env,
       AGENT_GUILD_SMOKE: '0',
       AGENT_GUILD_DATA_DIR: dataDirectory,
       AGENT_GUILD_MEASURE_SURFACE: scenario,
@@ -80,17 +88,20 @@ for (const scenario of ['panel-and-overlay', 'overlay-only', 'tray-only'] as con
     if (launchError) throw launchError;
     if (child.exitCode !== null || !child.pid)
       throw new Error(`Application did not start: ${errors}`);
-    const windows = output
+    const transitions = output
       .split('\n')
       .filter((line) => line.startsWith('{'))
-      .map((line) => JSON.parse(line) as { surface: string; visible: boolean });
+      .map((line) => JSON.parse(line) as { surface: string; exists: boolean; visible: boolean });
+    const windows = [...new Map(transitions.map((window) => [window.surface, window])).values()];
     if (
       windows.length !== 2 ||
       windows.some(
         (window) =>
+          window.exists !== (window.surface === 'overlay' || scenario === 'panel-and-overlay') ||
           window.visible !==
-          (scenario === 'panel-and-overlay' ||
-            (scenario === 'overlay-only' && window.surface === 'overlay')),
+            (window.surface === 'panel'
+              ? scenario === 'panel-and-overlay'
+              : scenario !== 'tray-only'),
       )
     )
       throw new Error(`Unexpected benchmark window visibility: ${output}`);
@@ -122,6 +133,7 @@ for (const scenario of ['panel-and-overlay', 'overlay-only', 'tray-only'] as con
       JSON.stringify({
         scenario,
         windows,
+        transitions,
         samples,
         meanSingleCoreCpuPercent:
           samples.reduce((sum, sample) => sum + sample.singleCoreCpuPercent, 0) / samples.length,

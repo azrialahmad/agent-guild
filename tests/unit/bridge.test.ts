@@ -134,6 +134,12 @@ describe('harness activity bridge', () => {
     projection.accept(packet('snapshot', { running: false }), 21007);
     expect(projection.activity).toMatchObject({ kind: 'idle', connection: 'connected' });
     expect(projection.activity.events).toHaveLength(5);
+    projection.accept(packet('session-end'), 21008);
+    expect(projection.activity).toMatchObject({
+      kind: 'unknown',
+      connection: 'disconnected',
+      activeTools: 0,
+    });
   });
 
   it('rejects private payload additions, old timestamps and unknown versions rather than turning them into idle signals', () => {

@@ -123,6 +123,29 @@ p {
   align-items: center;
   gap: 3px;
 }
+/* Native macOS traffic lights share the app's header instead of a second title row. */
+.app-shell.integrated-titlebar {
+  max-width: none;
+}
+.integrated-titlebar .topbar {
+  padding-left: 88px;
+  gap: 8px;
+  -webkit-app-region: drag;
+  user-select: none;
+}
+.integrated-titlebar .brand {
+  font-size: 21px;
+  gap: 6px;
+}
+.integrated-titlebar .topbar-right {
+  -webkit-app-region: no-drag;
+}
+.integrated-titlebar .panel-tabs,
+.integrated-titlebar .main-content {
+  width: 100%;
+  max-width: 560px;
+  align-self: center;
+}
 .mode-badge {
   display: inline-flex;
   align-items: center;
@@ -879,6 +902,27 @@ p {
   margin-top: 4px;
 }
 .settings-card > .disclosure {
+  margin-top: 4px;
+}
+.connection-summary {
+  padding: 9px 10px;
+  margin-bottom: 10px;
+  background: #f0f2e9;
+  border-radius: 6px;
+  overflow-wrap: anywhere;
+}
+.connection-summary strong {
+  font-size: 11px;
+  font-weight: 500;
+}
+.connection-summary p {
+  font-size: 11px;
+  margin-top: 4px;
+}
+.connection-summary small {
+  display: block;
+  font-size: 10px;
+  color: var(--muted);
   margin-top: 4px;
 }
 .field-label {

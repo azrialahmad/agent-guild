@@ -1,6 +1,13 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import type { GuildBridge, GuildState } from '../shared/types';
 
+let lastPage: 'guild' | 'adventures' | undefined;
+const navigation = new Set<(page: 'guild' | 'adventures') => void>();
+ipcRenderer.on('guild:navigate', (_event, page: 'guild' | 'adventures') => {
+  lastPage = page;
+  navigation.forEach((callback) => callback(page));
+});
+
 const bridge: GuildBridge = {
   state: () => ipcRenderer.invoke('guild:get'),
   subscribe: (callback) => {
@@ -14,10 +21,11 @@ const bridge: GuildBridge = {
   demo: () => ipcRenderer.invoke('guild:demo'),
   openPanel: (page = 'guild') => ipcRenderer.send('guild:panel', page),
   onNavigate: (callback) => {
-    const listener = (_event: Electron.IpcRendererEvent, page: 'guild' | 'adventures') =>
-      callback(page);
-    ipcRenderer.on('guild:navigate', listener);
-    return () => ipcRenderer.removeListener('guild:navigate', listener);
+    navigation.add(callback);
+    if (lastPage) callback(lastPage);
+    return () => {
+      navigation.delete(callback);
+    };
   },
   hideOverlay: (hidden) => ipcRenderer.invoke('guild:hidden', hidden),
   resetPosition: () => ipcRenderer.send('guild:reset-position'),
@@ -25,6 +33,7 @@ const bridge: GuildBridge = {
   moveOverlay: (dx, dy) => ipcRenderer.send('guild:move', dx, dy),
   saveImage: (data) => ipcRenderer.invoke('guild:save-image', data),
   backup: () => ipcRenderer.invoke('guild:backup'),
+  openAdapterGuide: () => ipcRenderer.invoke('guild:adapter-guide'),
 };
 
 contextBridge.exposeInMainWorld('guild', bridge);

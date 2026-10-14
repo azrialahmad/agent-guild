@@ -8,6 +8,11 @@ export default Plugin.define({
   id: 'agent-guild',
   async setup(ctx) {
     const producer = `${process.pid}-${createHash('sha256').update(ctx.location.directory).digest('hex').slice(0, 8)}`;
+    // Stable across PID changes, distinct for bundled private-server and shared-service binaries.
+    const sourceId = createHash('sha256')
+      .update(`${process.execPath}:${ctx.location.directory}`)
+      .digest('hex')
+      .slice(0, 24);
     const path = typeof ctx.options.socket === 'string' ? ctx.options.socket : undefined;
     const controller = new AbortController();
     const sessions = new Map<
@@ -37,6 +42,7 @@ export default Plugin.define({
         schema: 1,
         id: randomUUID(),
         producer,
+        sourceId,
         harness: 'opencode',
         sessionId,
         type,

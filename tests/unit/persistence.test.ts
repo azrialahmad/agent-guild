@@ -5,8 +5,49 @@ import { describe, expect, it } from 'vitest';
 import { newProfile } from '../../src/shared/game';
 import { ProfileStore } from '../../src/main/persistence';
 import { clampPlacement } from '../../src/main/placement';
+import { ConnectionStore, parseSelection } from '../../src/main/connection-store';
 
 describe('local persistence and desktop placement', () => {
+  it('keeps connection preferences separate from rewards and preserves invalid files until an explicit new selection', () => {
+    const directory = mkdtempSync(join(tmpdir(), 'guild-connection-'));
+    try {
+      const path = join(directory, 'connection.json');
+      const store = new ConnectionStore(path);
+      expect(store.load()).toBeNull();
+      const selection = {
+        transport: 'bridge',
+        harness: 'claude-code',
+        sourceId: 'stable-source',
+        sessionId: 'session-1',
+        title: 'Local fixture',
+      } as const;
+      store.save(selection);
+      expect(new ConnectionStore(path).load()).toEqual(selection);
+      for (const invalid of [
+        { ...selection, credentials: 'private' },
+        { ...selection, sessionId: '' },
+        { ...selection, sourceId: '\n' },
+        { ...selection, harness: 'unrecognized' },
+        { ...selection, title: 'x'.repeat(129) },
+      ]) {
+        expect(() => parseSelection(invalid)).toThrow();
+      }
+      writeFileSync(path, '{"schema":2,"selection":null}');
+      expect(() => store.load()).toThrow();
+      expect(readFileSync(path, 'utf8')).toBe('{"schema":2,"selection":null}');
+      store.save({
+        transport: 'service',
+        harness: 'opencode',
+        sessionId: 'ses_fixture',
+        title: 'Fixture',
+      });
+      expect(store.load()?.transport).toBe('service');
+      store.save(null);
+      expect(store.load()).toBeNull();
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
   it('persists a profile atomically and preserves a corrupt file for recovery', () => {
     const directory = mkdtempSync(join(tmpdir(), 'guild-store-'));
     try {
